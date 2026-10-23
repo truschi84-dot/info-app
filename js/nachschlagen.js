@@ -1,7 +1,7 @@
 // Nachschlagen: Sammlungen (Wiki/Tabelle) durchsuchen, Eintrag ansehen,
 // fuer Redakteure anlegen, aendern, archivieren. Welche Felder es gibt,
 // steht in sammlung_felder - nichts davon ist hier fest eingebaut.
-import { $, datumZeit, db, element, knopfBeschaeftigt, meldung, zeige } from "./gemeinsam.js?v=8";
+import { $, datumZeit, db, element, knopfBeschaeftigt, meldung, zeige } from "./gemeinsam.js?v=10";
 
 const SUCH_PAUSE_MS = 250;
 

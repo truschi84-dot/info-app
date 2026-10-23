@@ -171,6 +171,42 @@ button.laedt::after { content: " …"; }
 .verlauf > ul > li { padding: 10px 0; border-bottom: 1px dashed var(--rand); display: grid; gap: 4px; }
 .verlauf .feld-anzeige { margin: 4px 0 0; }
 
+/* Planer */
+.monat-kopf { display: flex; align-items: center; gap: 8px; margin: 4px 0 10px; }
+.monat-kopf h2 { margin: 0; flex: 1; text-align: center; }
+.kalender { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.kal-kopf { text-align: center; font-size: 12px; font-weight: 600; color: var(--leise); padding-bottom: 2px; }
+.kal-tag {
+  min-height: 58px; padding: 4px; display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  background: transparent; color: var(--text); border: 1px solid var(--rand); border-radius: 10px; font-weight: 500;
+}
+.kal-tag.we { background: var(--hg); }
+.kal-tag.heute .kal-zahl { background: var(--akzent); color: var(--akzent-text); border-radius: 999px; padding: 0 6px; }
+.kal-tag.gewaehlt { outline: 2px solid var(--akzent); outline-offset: -1px; }
+.kal-zahl { font-size: 14px; }
+.kal-marken { display: flex; flex-wrap: wrap; gap: 2px; font-size: 11px; }
+.marke-termin { background: var(--akzent-hell); color: var(--akzent); border-radius: 6px; padding: 0 5px; font-weight: 700; }
+.marke-weg { border-radius: 6px; padding: 0 3px; }
+.tag-eintrag.abgesagt strong { text-decoration: line-through; }
+.eintrag-knopf.ruhig { cursor: default; }
+.eintrag-knopf.ruhig:hover { background: transparent; }
+#termin-bereich { margin-top: 16px; }
+.antraege { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.antrag { padding: 12px 14px; border: 1px solid var(--rand); border-radius: 14px; }
+.antrag-kopf { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px; align-items: baseline; }
+.antrag .feld { margin: 8px 0 4px; }
+.antrag .feld input { font-size: 15px; padding: 8px 10px; }
+.status { font-size: 12px; font-weight: 700; padding: 2px 10px; border-radius: 999px; }
+.status-beantragt { background: #fef0c7; color: #93370d; }
+.status-genehmigt { background: var(--akzent-hell); color: var(--akzent); }
+.status-abgelehnt { background: var(--rot-hell); color: var(--rot); }
+.status-zurueckgezogen { background: var(--hg); color: var(--leise); }
+.warnung { color: #b54708; }
+@media (max-width: 560px) {
+  .kal-tag { min-height: 46px; padding: 3px; }
+  .kal-marken { font-size: 10px; }
+}
+
 /* Gruppen & Rechte */
 .haken-liste { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 6px 0 12px; }
 .haken { display: inline-flex; align-items: center; gap: 8px; font-size: 15px; cursor: pointer; }

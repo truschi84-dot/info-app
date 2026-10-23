@@ -3,12 +3,13 @@
 //   gueltige Sitzung          -> Start
 //   Geraet eingerichtet       -> PIN
 //   sonst                     -> Einladung
-import { $, db, geraetLesen, zeige } from "./gemeinsam.js?v=8";
-import { UMGEBUNG } from "./konfig.js?v=8";
-import { anmeldungEinrichten, codeAus, zeigeEinladung, zeigePin } from "./anmelden.js?v=8";
-import { adminEinrichten, zeigeAdmin } from "./admin.js?v=8";
-import { nachschlagenEinrichten, zeigeNachschlagen } from "./nachschlagen.js?v=8";
-import { gruppenEinrichten, zeigeGruppen } from "./gruppen.js?v=8";
+import { $, db, geraetLesen, zeige } from "./gemeinsam.js?v=10";
+import { UMGEBUNG } from "./konfig.js?v=10";
+import { anmeldungEinrichten, codeAus, zeigeEinladung, zeigePin } from "./anmelden.js?v=10";
+import { adminEinrichten, zeigeAdmin } from "./admin.js?v=10";
+import { nachschlagenEinrichten, zeigeNachschlagen } from "./nachschlagen.js?v=10";
+import { gruppenEinrichten, zeigeGruppen } from "./gruppen.js?v=10";
+import { planerEinrichten, zeigePlaner } from "./planer.js?v=10";
 
 let ich = null;
 
@@ -41,6 +42,7 @@ async function start() {
   adminEinrichten(zeigeStart);
   nachschlagenEinrichten(zeigeStart);
   gruppenEinrichten(zeigeStart);
+  planerEinrichten(zeigeStart);
 
   // Nur dieses Geraet abmelden ("local"). Ohne Angabe beendet Supabase alle
   // Sitzungen der Person - dann waere auch das Handy draussen, wenn man am PC
@@ -52,6 +54,7 @@ async function start() {
   $("#zur-verwaltung").addEventListener("click", () => zeigeAdmin(ich));
   $("#zu-gruppen").addEventListener("click", () => zeigeGruppen());
   $("#zum-nachschlagen").addEventListener("click", () => zeigeNachschlagen(ich));
+  $("#zum-planer").addEventListener("click", () => zeigePlaner(ich));
 
   // Einladung aus dem QR-Code: Code aus der Adresse nehmen und dort loeschen.
   if (location.hash.includes("einladung=")) {

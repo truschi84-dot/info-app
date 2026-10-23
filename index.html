@@ -12,7 +12,7 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="icon" href="icons/icon-192.png">
 <title>Info-App</title>
-<link rel="stylesheet" href="css/app.css?v=3">
+<link rel="stylesheet" href="css/app.css?v=4">
 </head>
 <body>
 
@@ -88,13 +88,89 @@
   <ul class="teile">
     <li><span>💬</span> Chats<em>kommt bald</em></li>
     <li class="offen"><button id="zum-nachschlagen"><span>📖</span> Nachschlagen</button></li>
-    <li><span>📅</span> Planer<em>kommt bald</em></li>
+    <li class="offen"><button id="zum-planer"><span>📅</span> Planer</button></li>
     <li><span>📝</span> Notizen<em>kommt bald</em></li>
   </ul>
   <div class="knoepfe" id="admin-knoepfe" hidden>
     <button id="zur-verwaltung" class="haupt">👥 Personen</button>
     <button id="zu-gruppen" class="haupt">🗂️ Gruppen &amp; Rechte</button>
   </div>
+</main>
+
+<!-- Planer: Kalender, Urlaub, Antraege -->
+<main class="karte breit" data-bildschirm="planer" hidden>
+  <div class="kopf">
+    <h1>Planer</h1>
+    <button id="planer-zurueck" class="neben klein-knopf">Zurück</button>
+  </div>
+  <div id="planer-reiter" class="chips"></div>
+  <p id="planer-meldung" class="meldung" hidden></p>
+
+  <section id="planer-kalender">
+    <div class="monat-kopf">
+      <button id="monat-zurueck" class="neben klein-knopf" aria-label="Voriger Monat">‹</button>
+      <h2 id="monat-name"></h2>
+      <button id="monat-vor" class="neben klein-knopf" aria-label="Nächster Monat">›</button>
+      <button id="monat-heute" class="neben klein-knopf">Heute</button>
+    </div>
+    <div id="kalender" class="kalender"></div>
+    <div class="zeile-kopf">
+      <h2 id="tag-titel"></h2>
+      <button id="termin-neu" class="neben klein-knopf" hidden>＋ Termin</button>
+    </div>
+    <ul id="tag-liste" class="eintragsliste"></ul>
+
+    <div id="termin-bereich" class="anlegen" hidden>
+      <h2 id="termin-ueberschrift">Neuer Termin</h2>
+      <form id="termin-form" novalidate>
+        <label class="feld"><span>Gruppe</span><select id="t-gruppe"></select></label>
+        <label class="feld"><span>Titel *</span><input id="t-titel" maxlength="120"></label>
+        <div class="zeile">
+          <label class="feld"><span>Datum *</span><input id="t-datum" type="date"></label>
+          <label class="haken gross"><input id="t-ganztags" type="checkbox"><span>ganztägig</span></label>
+        </div>
+        <div class="zeile" id="t-zeiten">
+          <label class="feld"><span>von</span><input id="t-von" type="time"></label>
+          <label class="feld"><span>bis</span><input id="t-bis" type="time"></label>
+        </div>
+        <label class="feld"><span>Ort</span><input id="t-ort" maxlength="120"></label>
+        <label class="feld"><span>Beschreibung</span><textarea id="t-beschreibung" rows="3" maxlength="1000"></textarea></label>
+        <div class="knoepfe">
+          <button id="termin-speichern" class="haupt" type="submit">Speichern</button>
+          <button id="termin-abbrechen" class="neben" type="button">Abbrechen</button>
+          <button id="termin-absagen" class="gefahr" type="button" hidden>Absagen</button>
+        </div>
+        <p id="termin-meldung" class="meldung" hidden></p>
+      </form>
+    </div>
+  </section>
+
+  <section id="planer-urlaub" hidden>
+    <form id="urlaub-form" class="anlegen" novalidate>
+      <h2>Abwesenheit beantragen</h2>
+      <label class="feld" id="u-fuer-feld" hidden><span>Für (als Admin direkt genehmigt)</span><select id="u-fuer"></select></label>
+      <label class="feld"><span>Art</span>
+        <select id="u-art"><option value="urlaub">Urlaub</option><option value="schule">Schule / Fortbildung</option><option value="sonstiges">Sonstiges</option></select>
+      </label>
+      <div class="zeile">
+        <label class="feld"><span>von</span><input id="u-von" type="date"></label>
+        <label class="feld"><span>bis</span><input id="u-bis" type="date"></label>
+        <label class="feld" id="u-halbtags-feld" hidden><span>Halber Tag?</span>
+          <select id="u-halbtags"><option value="">ganzer Tag</option><option value="vormittag">Vormittag</option><option value="nachmittag">Nachmittag</option></select>
+        </label>
+      </div>
+      <label class="feld"><span>Bemerkung (sieht nur der Admin)</span><input id="u-bemerkung" maxlength="500"></label>
+      <button id="urlaub-los" class="haupt" type="submit">Beantragen</button>
+      <p id="urlaub-meldung" class="meldung" hidden></p>
+    </form>
+    <h2>Meine Anträge</h2>
+    <ul id="urlaub-liste" class="antraege"></ul>
+  </section>
+
+  <section id="planer-antraege" hidden>
+    <h2>Offene Anträge</h2>
+    <ul id="antraege-liste" class="antraege"></ul>
+  </section>
 </main>
 
 <!-- Nachschlagen: Liste und Suche -->
@@ -228,6 +304,6 @@
 
 <script src="lib/supabase.min.js?v=2.45.4"></script>
 <script src="lib/qrcode.js?v=2.0.4"></script>
-<script type="module" src="js/app.js?v=8"></script>
+<script type="module" src="js/app.js?v=10"></script>
 </body>
 </html>
