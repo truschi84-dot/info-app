@@ -1,10 +1,12 @@
 // Admin-Seite "Personen": anlegen, einladen (QR + Druck), Geraete sperren,
 // PIN-Sperre aufheben, deaktivieren / aktivieren. Lesen geht direkt ueber die
 // Datenbank (Zugriffsregeln), Aendern ueber die Cloud-Funktion admin-personen.
-import { $, datumZeit, db, element, funktion, geraetLesen, knopfBeschaeftigt, meldung, zeige } from "./gemeinsam.js?v=10";
+import { $, datumZeit, db, element, funktion, geraetLesen, haken, knopfBeschaeftigt, meldung, zeige } from "./gemeinsam.js?v=12";
 
 const PIN_SPERRE_AB = 5;
 let ich = null;
+let abteilungen = [];   // alle vorkommenden Abteilungen (aus den Personen)
+let leitung = [];       // { profil_id, abteilung }
 
 export function adminEinrichten(zurueck) {
   $("#admin-zurueck").addEventListener("click", zurueck);
@@ -22,14 +24,18 @@ export async function zeigeAdmin(angemeldet) {
 async function personenLaden() {
   const liste = $("#personen");
   meldung("#admin-meldung", "");
-  const [p, g] = await Promise.all([
-    db.from("profile").select("id, name, abteilung, rolle, aktiv").order("name"),
+  const [p, g, l] = await Promise.all([
+    db.from("profile").select("id, name, abteilung, rolle, aktiv, darf_freigeben").order("name"),
     db.from("geraete").select("id, profil_id, bezeichnung, erstellt_am, gesperrt_am, fehlversuche").order("erstellt_am"),
+    db.from("abteilungsleiter").select("profil_id, abteilung"),
   ]);
-  if (p.error || g.error) {
-    meldung("#admin-meldung", "Liste konnte nicht geladen werden: " + (p.error || g.error).message);
+  if (p.error || g.error || l.error) {
+    meldung("#admin-meldung", "Liste konnte nicht geladen werden: " + (p.error || g.error || l.error).message);
     return;
   }
+  leitung = l.data;
+  abteilungen = [...new Set([...p.data.map((x) => x.abteilung), ...leitung.map((x) => x.abteilung)].filter(Boolean))].sort();
+  $("#abteilungen-liste").replaceChildren(...abteilungen.map((a) => element("option", { value: a })));
   liste.replaceChildren(...p.data.map((person) => personKarte(person, g.data.filter((x) => x.profil_id === person.id))));
 }
 
@@ -48,9 +54,17 @@ function personKarte(person, geraete) {
     knoepfe.append(element("button", { klasse: "neben", text: "Wieder aktivieren", onclick: (e) => aktivieren(person, e.currentTarget) }));
   }
 
+  // Gesperrte Geraete zusammengeklappt, sonst wird die Liste mit der Zeit lang.
+  const aktiv = geraete.filter((g) => !g.gesperrt_am);
+  const gesperrt = geraete.filter((g) => g.gesperrt_am);
   const geraeteListe = element("ul", { klasse: "geraete" });
-  for (const g of geraete) geraeteListe.append(geraetZeile(g));
-  if (!geraete.length) geraeteListe.append(element("li", { klasse: "leise", text: "Noch kein Gerät eingerichtet" }));
+  for (const g of aktiv) geraeteListe.append(geraetZeile(g));
+  if (!aktiv.length) geraeteListe.append(element("li", { klasse: "leise", text: "Kein aktives Gerät" }));
+  if (gesperrt.length) {
+    geraeteListe.append(element("li", {}, element("details", { klasse: "gesperrte" },
+      element("summary", { klasse: "leise", text: `${gesperrt.length} gesperrte${gesperrt.length === 1 ? "s" : ""} Gerät${gesperrt.length === 1 ? "" : "e"}` }),
+      element("ul", { klasse: "geraete" }, ...gesperrt.map(geraetZeile)))));
+  }
 
   return element("article", { klasse: "person" + (person.aktiv ? "" : " aus") },
     element("div", { klasse: "person-kopf" },
@@ -58,7 +72,32 @@ function personKarte(person, geraete) {
       element("span", { klasse: "leise", text: [person.abteilung, person.rolle === "admin" ? "Admin" : null, person.aktiv ? null : "deaktiviert"].filter(Boolean).join(" · ") }),
     ),
     geraeteListe,
+    person.aktiv ? rechteBereich(person) : null,
     knoepfe,
+  );
+}
+
+// Abteilung, Freigeber (genehmigt Urlaub), welche Abteilungen jemand leitet.
+function rechteBereich(person) {
+  const abteilung = element("input", { value: person.abteilung || "", list: "abteilungen-liste", maxlength: "60", placeholder: "z. B. Versand" });
+  abteilung.addEventListener("change", async () => {
+    const neu = abteilung.value.trim() || null;
+    const { error } = await db.from("profile").update({ abteilung: neu }).eq("id", person.id);
+    if (error) return meldung("#admin-meldung", "Abteilung ging nicht: " + error.message);
+    personenLaden();
+  });
+  const leitet = new Set(leitung.filter((x) => x.profil_id === person.id).map((x) => x.abteilung));
+  return element("div", { klasse: "rechte" },
+    element("label", { klasse: "feld klein-feld" }, element("span", { text: "Abteilung" }), abteilung),
+    haken("Freigeber – genehmigt Urlaub", person.darf_freigeben,
+      (an) => db.from("profile").update({ darf_freigeben: an }).eq("id", person.id), "#admin-meldung"),
+    abteilungen.length ? element("div", { klasse: "haken-liste" },
+      element("span", { klasse: "klein", text: "Leitet:" }),
+      ...abteilungen.map((a) => haken(a, leitet.has(a),
+        (an) => an
+          ? db.from("abteilungsleiter").insert({ profil_id: person.id, abteilung: a })
+          : db.from("abteilungsleiter").delete().eq("profil_id", person.id).eq("abteilung", a),
+        "#admin-meldung"))) : null,
   );
 }
 

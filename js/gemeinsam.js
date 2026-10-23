@@ -3,7 +3,7 @@
 // nie als HTML (Plan Abschnitt 5, Falle 8).
 // Alle eigenen Module tragen dieselbe ?v=-Nummer wie in index.html. Ein Modul
 // muss ueberall mit derselben Adresse eingebunden werden, sonst laeuft es doppelt.
-import { SUPABASE, UMGEBUNG } from "./konfig.js?v=10";
+import { SUPABASE, UMGEBUNG } from "./konfig.js?v=12";
 
 export const db = window.supabase.createClient(SUPABASE.url, SUPABASE.key, {
   auth: { storageKey: `info-app-sitzung-${UMGEBUNG}`, persistSession: true, autoRefreshToken: true },
@@ -86,6 +86,26 @@ export function element(tag, eigenschaften = {}, ...kinder) {
   }
   for (const k of kinder) if (k) e.append(k);
   return e;
+}
+
+// Ein Haken, der sofort speichert. Im change-Handler steht "checked" schon
+// auf dem neuen Wert; geht das Speichern schief, wird er zurueckgesetzt.
+export function haken(text, an, speichern, meldeZiel, danach = () => {}) {
+  const box = element("input", { type: "checkbox" });
+  box.checked = an;
+  box.addEventListener("change", async () => {
+    const neu = box.checked;
+    box.disabled = true;
+    const { error } = await speichern(neu);
+    box.disabled = false;
+    if (error) {
+      box.checked = !neu;
+      meldung(meldeZiel, "Speichern ging nicht: " + error.message);
+      return;
+    }
+    danach();
+  });
+  return element("label", { klasse: "haken" }, box, element("span", { text }));
 }
 
 export const datumZeit = (iso) =>

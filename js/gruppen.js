@@ -1,7 +1,7 @@
 // Admin-Seite "Gruppen & Rechte": Gruppen anlegen, Mitglieder anhaken,
 // und je Sammlung festlegen, welche Gruppen lesen und wer schreibt.
 // Alles direkt ueber die Datenbank - die Zugriffsregeln lassen nur den Admin.
-import { $, db, element, knopfBeschaeftigt, meldung, zeige } from "./gemeinsam.js?v=10";
+import { $, db, element, haken as sofortHaken, knopfBeschaeftigt, meldung, zeige } from "./gemeinsam.js?v=12";
 
 let personen = [];
 
@@ -74,25 +74,8 @@ function rechteKarte(sa, gruppen, lesen, schreiben) {
   );
 }
 
-// Ein Haken, der sofort speichert. Im change-Handler steht "checked" schon
-// auf dem neuen Wert; geht das Speichern schief, wird er zurueckgesetzt.
-function haken(text, an, speichern) {
-  const box = element("input", { type: "checkbox" });
-  box.checked = an;
-  box.addEventListener("change", async () => {
-    const neu = box.checked;
-    box.disabled = true;
-    const { error } = await speichern(neu);
-    box.disabled = false;
-    if (error) {
-      box.checked = !neu;
-      meldung("#gruppen-meldung", "Speichern ging nicht: " + error.message);
-      return;
-    }
-    laden(); // Zahlen wie "3 Mitglieder" stimmen sonst nicht mehr
-  });
-  return element("label", { klasse: "haken" }, box, element("span", { text }));
-}
+// Nach jedem Haken neu laden - Zahlen wie "3 Mitglieder" stimmen sonst nicht mehr.
+const haken = (text, an, speichern) => sofortHaken(text, an, speichern, "#gruppen-meldung", laden);
 
 async function gruppeAnlegen() {
   const name = $("#gruppe-name").value.trim();

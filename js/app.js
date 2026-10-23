@@ -3,13 +3,13 @@
 //   gueltige Sitzung          -> Start
 //   Geraet eingerichtet       -> PIN
 //   sonst                     -> Einladung
-import { $, db, geraetLesen, zeige } from "./gemeinsam.js?v=10";
-import { UMGEBUNG } from "./konfig.js?v=10";
-import { anmeldungEinrichten, codeAus, zeigeEinladung, zeigePin } from "./anmelden.js?v=10";
-import { adminEinrichten, zeigeAdmin } from "./admin.js?v=10";
-import { nachschlagenEinrichten, zeigeNachschlagen } from "./nachschlagen.js?v=10";
-import { gruppenEinrichten, zeigeGruppen } from "./gruppen.js?v=10";
-import { planerEinrichten, zeigePlaner } from "./planer.js?v=10";
+import { $, db, geraetLesen, zeige } from "./gemeinsam.js?v=12";
+import { UMGEBUNG } from "./konfig.js?v=12";
+import { anmeldungEinrichten, codeAus, zeigeEinladung, zeigePin } from "./anmelden.js?v=12";
+import { adminEinrichten, zeigeAdmin } from "./admin.js?v=12";
+import { nachschlagenEinrichten, zeigeNachschlagen } from "./nachschlagen.js?v=12";
+import { gruppenEinrichten, zeigeGruppen } from "./gruppen.js?v=12";
+import { planerEinrichten, zeigePlaner } from "./planer.js?v=12";
 
 let ich = null;
 
@@ -18,7 +18,7 @@ let ich = null;
 async function ichSelbst() {
   const { data: { session } } = await db.auth.getSession();
   if (!session) return null;
-  const { data, error } = await db.from("profile").select("id, name, rolle").eq("id", session.user.id).maybeSingle();
+  const { data, error } = await db.from("profile").select("id, name, rolle, darf_freigeben").eq("id", session.user.id).maybeSingle();
   return error ? null : data;
 }
 

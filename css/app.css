@@ -207,6 +207,15 @@ button.laedt::after { content: " …"; }
   .kal-marken { font-size: 10px; }
 }
 
+.gesperrte { width: 100%; }
+.gesperrte summary { cursor: pointer; }
+.gesperrte .geraete { margin: 4px 0 0 14px; }
+
+/* Personen: Rechte */
+.rechte { display: grid; gap: 6px; padding: 8px 0 10px; border-top: 1px dashed var(--rand); }
+.klein-feld { margin: 0; max-width: 280px; }
+.klein-feld input { font-size: 15px; padding: 8px 10px; }
+
 /* Gruppen & Rechte */
 .haken-liste { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 6px 0 12px; }
 .haken { display: inline-flex; align-items: center; gap: 8px; font-size: 15px; cursor: pointer; }

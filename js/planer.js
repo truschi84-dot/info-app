@@ -2,7 +2,7 @@
 // eigener Urlaub (Antrag), fuer Admins die offenen Antraege.
 // Geschrieben wird ueber die Datenbank-Funktionen abwesenheit_* und direkt
 // in "termine" - die Zugriffsregeln entscheiden, wer was darf.
-import { $, db, element, knopfBeschaeftigt, meldung, zeige } from "./gemeinsam.js?v=10";
+import { $, db, element, knopfBeschaeftigt, meldung, zeige } from "./gemeinsam.js?v=12";
 
 const ARTEN = { urlaub: "Urlaub", schule: "Schule / Fortbildung", sonstiges: "Sonstiges" };
 const STATUS = { beantragt: "beantragt", genehmigt: "genehmigt", abgelehnt: "abgelehnt", zurueckgezogen: "zurückgezogen" };
@@ -18,6 +18,8 @@ let gruppen = [];          // Gruppen, die ich sehe: { id, name, art, schreiben 
 let termine = [];
 let abwesenheiten = [];   // im angezeigten Monat
 let genehmigte = [];      // ab heute, fuer die Antraege-Ansicht
+let team = [];            // fuer wen ich eintragen darf
+let istLeiter = false;
 let offenerTermin = null;
 
 // ── Datum ohne Zeitzonen-Fallen: Tage als "JJJJ-MM-TT" in Ortszeit ─────────
@@ -51,34 +53,46 @@ export function planerEinrichten(zurueck) {
 export async function zeigePlaner(angemeldet) {
   ich = angemeldet;
   zeige("planer");
-  const [p, g, m] = await Promise.all([
-    db.from("profile").select("id, name, aktiv").order("name"),
+  const [p, g, m, l] = await Promise.all([
+    db.from("profile").select("id, name, abteilung, aktiv").order("name"),
     db.from("unterhaltungen").select("id, name, art, archiviert").neq("art", "einzel").order("name"),
     db.from("mitglieder").select("unterhaltung_id, darf_schreiben").eq("nutzer_id", ich.id),
+    db.from("abteilungsleiter").select("abteilung").eq("profil_id", ich.id),
   ]);
   namen = new Map((p.data || []).map((x) => [x.id, x.name]));
   const meine = new Map((m.data || []).map((x) => [x.unterhaltung_id, x.darf_schreiben]));
   gruppen = (g.data || []).filter((x) => !x.archiviert).map((x) => ({
     ...x, schreiben: ich.rolle === "admin" || x.art === "offen" || meine.get(x.id) === true,
   }));
+
+  // Fuer wen darf ich eintragen? Admin und Freigeber: alle; Leiter: ihre Abteilungen.
+  const geleitet = new Set((l.data || []).map((x) => x.abteilung));
+  const alle = ich.rolle === "admin" || ich.darf_freigeben;
+  team = (p.data || []).filter((x) => x.aktiv && x.id !== ich.id && (alle || geleitet.has(x.abteilung)));
+  istLeiter = geleitet.size > 0;
   $("#u-fuer").replaceChildren(element("option", { value: "", text: "mich" }),
-    ...(ich.rolle === "admin" ? (p.data || []).filter((x) => x.aktiv && x.id !== ich.id).map((x) => element("option", { value: x.id, text: x.name })) : []));
-  $("#u-fuer-feld").hidden = ich.rolle !== "admin";
+    ...team.map((x) => element("option", { value: x.id, text: x.name + (x.abteilung ? ` (${x.abteilung})` : "") })));
+  $("#u-fuer-feld").hidden = !team.length;
+  $("#u-fuer-hinweis").textContent = ich.darf_freigeben ? "Für (du bist Freigeber – dann gleich genehmigt)" : "Für (wartet dann auf die Freigabe)";
   ansichtWaehlen(ansicht);
 }
 
 function ansichtWaehlen(name) {
-  ansicht = name;
   const reiter = [["kalender", "📅 Kalender"], ["urlaub", "🌴 Mein Urlaub"]];
-  if (ich.rolle === "admin") reiter.push(["antraege", "✅ Anträge"]);
+  if (istLeiter || ich.rolle === "admin") reiter.push(["abteilung", "👥 Abteilung"]);
+  if (ich.darf_freigeben) reiter.push(["antraege", "✅ Anträge"]);
+  if (!reiter.some(([k]) => k === name)) name = "kalender";
+  ansicht = name;
   $("#planer-reiter").replaceChildren(...reiter.map(([k, t]) =>
     element("button", { klasse: "chip" + (k === name ? " an" : ""), text: t, onclick: () => ansichtWaehlen(k) })));
   $("#planer-kalender").hidden = name !== "kalender";
   $("#planer-urlaub").hidden = name !== "urlaub";
+  $("#planer-abteilung").hidden = name !== "abteilung";
   $("#planer-antraege").hidden = name !== "antraege";
   meldung("#planer-meldung", "");
   if (name === "kalender") kalenderLaden();
   if (name === "urlaub") urlaubLaden();
+  if (name === "abteilung") abteilungLaden();
   if (name === "antraege") antraegeLaden();
 }
 
@@ -258,21 +272,46 @@ async function urlaubBeantragen() {
   knopfBeschaeftigt(knopf, false);
   if (error) return meldung("#urlaub-meldung", error.message);
   const fuerJemand = $("#u-fuer").value;
-  meldung("#urlaub-meldung", fuerJemand ? "Eingetragen und genehmigt." : "Beantragt. Du siehst hier, sobald entschieden ist.", "hinweis");
+  meldung("#urlaub-meldung",
+    !fuerJemand ? "Beantragt. Du siehst hier, sobald entschieden ist."
+      : ich.darf_freigeben ? "Eingetragen und genehmigt."
+      : "Eingetragen. Es wartet jetzt auf die Freigabe.", "hinweis");
   $("#u-bemerkung").value = "";
   urlaubLaden();
 }
 
-async function zurueckziehen(x, knopf) {
+async function zurueckziehen(x, knopf, danach = urlaubLaden) {
   if (!confirm(`${ARTEN[x.art]} ${zeitraum(x)} zurückziehen?`)) return;
   knopfBeschaeftigt(knopf, true);
   const { error } = await db.rpc("abwesenheit_zurueckziehen", { abwesenheit: x.id });
   knopfBeschaeftigt(knopf, false);
   if (error) return meldung("#planer-meldung", error.message);
-  urlaubLaden();
+  danach();
 }
 
-// ── Antraege (Admin) ────────────────────────────────────────────────────
+// ── Abteilung (Leiter): Abwesenheiten der eigenen Leute ab heute ────────
+async function abteilungLaden() {
+  const heute = isoTag(new Date());
+  const ids = team.map((x) => x.id);
+  const { data, error } = ids.length
+    ? await db.from("abwesenheiten").select("*").in("profil_id", ids).gte("bis", heute)
+      .in("status", ["beantragt", "genehmigt", "abgelehnt"]).order("von")
+    : { data: [], error: null };
+  if (error) return meldung("#planer-meldung", "Konnte nicht laden: " + error.message);
+  $("#abteilung-hinweis").textContent = team.length
+    ? `Du trägst für ${team.length} Person${team.length === 1 ? "" : "en"} ein – unter „Mein Urlaub" bei „Für".`
+    : "Dir ist noch keine Abteilung zugeordnet.";
+  $("#abteilung-liste").replaceChildren(...(data.length ? data.map((x) => element("li", { klasse: "antrag" },
+    element("div", { klasse: "antrag-kopf" },
+      element("strong", { text: `${namen.get(x.profil_id) || "?"} · ${ARTEN[x.art]} · ${zeitraum(x)}` }),
+      element("span", { klasse: `status status-${x.status}`, text: STATUS[x.status] })),
+    ["beantragt", "genehmigt"].includes(x.status)
+      ? element("button", { klasse: "neben klein-knopf", text: "Zurückziehen", onclick: (e) => zurueckziehen(x, e.currentTarget, abteilungLaden) })
+      : null,
+  )) : [element("li", { klasse: "leise", text: "Nichts geplant." })]));
+}
+
+// ── Antraege (Freigeber) ────────────────────────────────────────────────
 async function antraegeLaden() {
   const [a, n, g] = await Promise.all([
     db.from("abwesenheiten").select("*").eq("status", "beantragt").order("von"),
@@ -287,7 +326,8 @@ async function antraegeLaden() {
     const ueberschneidung = abwesenheitenAndere(x);
     return element("li", { klasse: "antrag" },
       element("div", { klasse: "antrag-kopf" },
-        element("strong", { text: `${namen.get(x.profil_id) || "?"} · ${ARTEN[x.art]}` }),
+        element("strong", { text: `${namen.get(x.profil_id) || "?"} · ${ARTEN[x.art]}`
+          + (x.eingetragen_von && x.eingetragen_von !== x.profil_id ? ` (eingetragen von ${namen.get(x.eingetragen_von) || "?"})` : "") }),
         element("span", { klasse: "leise", text: zeitraum(x) })),
       notiz.get(x.id)?.bemerkung ? element("p", { klasse: "klein", text: `Bemerkung: ${notiz.get(x.id).bemerkung}` }) : null,
       ueberschneidung ? element("p", { klasse: "klein warnung", text: ueberschneidung }) : null,
