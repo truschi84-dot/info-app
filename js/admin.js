@@ -5,7 +5,7 @@
 import {
   $, FARBEN, abteilungsChip, abteilungsFarbe, datumZeit, db, element, farbenLaden, funktion, geraetLesen, haken,
   knopfBeschaeftigt, meldung, zeige,
-} from "./gemeinsam.js?v=18";
+} from "./gemeinsam.js?v=20";
 
 const PIN_SPERRE_AB = 5;
 let ich = null;
@@ -103,7 +103,10 @@ function personKarte(person, geraete, offeneEinladung) {
       knoepfe.append(element("button", { klasse: "gefahr", text: "Deaktivieren", onclick: (e) => deaktivieren(person, e.currentTarget) }));
     }
   } else {
-    knoepfe.append(element("button", { klasse: "neben", text: "Wieder aktivieren", onclick: (e) => aktivieren(person, e.currentTarget) }));
+    knoepfe.append(
+      element("button", { klasse: "neben", text: "Wieder aktivieren", onclick: (e) => aktivieren(person, e.currentTarget) }),
+      element("button", { klasse: "gefahr", text: "🗑️ Endgültig löschen", onclick: (e) => endgueltigLoeschen(person, e.currentTarget) }),
+    );
   }
 
   // Gesperrte Geraete zusammengeklappt, sonst wird die Liste mit der Zeit lang.
@@ -278,10 +281,29 @@ async function deaktivieren(person, knopf) {
   if (await aktion(knopf, { aktion: "deaktivieren", profil_id: person.id })) personenLaden();
 }
 
+// Nach dem Ausscheiden: alles zur Person weg. Was sie fuer die Firma geschrieben
+// hat (Wiki, Termine), bleibt ohne ihren Namen. Die Datenbank prueft dasselbe
+// noch einmal (person_loeschen): nur Admin, nur deaktiviert, Name muss passen.
+async function endgueltigLoeschen(person, knopf) {
+  const eingabe = prompt(`${person.name} endgültig löschen?\n\n`
+    + "Weg sind dann: Konto, Geräte, PIN, Urlaub, Gruppen, Chats und alle Protokolleinträge zu dieser Person.\n"
+    + "Wiki-Einträge und Termine, die sie geschrieben hat, bleiben – ohne ihren Namen.\n"
+    + "Das lässt sich NICHT rückgängig machen.\n\n"
+    + "Zum Bestätigen den Namen genau so eintippen:");
+  if (eingabe === null) return;
+  if (eingabe.trim() !== person.name) return meldung("#admin-meldung", "Der Name passt nicht – nichts gelöscht.");
+  knopfBeschaeftigt(knopf, true);
+  const { data, error } = await db.rpc("person_loeschen", { person: person.id, name_bestaetigt: eingabe.trim() });
+  knopfBeschaeftigt(knopf, false);
+  if (error) return meldung("#admin-meldung", "Löschen ging nicht: " + error.message);
+  await personenLaden(); // leert #admin-meldung - darum die Meldung erst danach
+  meldung("#admin-meldung", `${person.name} ist gelöscht (${data.abwesenheiten} ${data.abwesenheiten === 1 ? "Abwesenheit" : "Abwesenheiten"} mit entfernt).`, "hinweis");
+}
+
 async function aktivieren(person, knopf) {
   if (!(await aktion(knopf, { aktion: "aktivieren", profil_id: person.id }))) return;
+  await personenLaden();
   meldung("#admin-meldung", `${person.name} ist wieder aktiv und braucht eine neue Einladung („Weiteres Gerät" oder „Neue PIN").`, "hinweis");
-  personenLaden();
 }
 
 async function pinSperreAufheben(g, knopf) {
