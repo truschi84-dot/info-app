@@ -3,13 +3,13 @@
 //   gueltige Sitzung          -> Start
 //   Geraet eingerichtet       -> PIN
 //   sonst                     -> Einladung
-import { $, db, geraetLesen, zeige } from "./gemeinsam.js?v=16";
-import { UMGEBUNG } from "./konfig.js?v=16";
-import { anmeldungEinrichten, codeAus, zeigeEinladung, zeigePin } from "./anmelden.js?v=16";
-import { adminEinrichten, zeigeAdmin } from "./admin.js?v=16";
-import { nachschlagenEinrichten, zeigeNachschlagen } from "./nachschlagen.js?v=16";
-import { gruppenEinrichten, zeigeGruppen } from "./gruppen.js?v=16";
-import { planerEinrichten, zeigePlaner } from "./planer.js?v=16";
+import { $, db, farbenLaden, geraetLesen, zeige } from "./gemeinsam.js?v=17";
+import { UMGEBUNG } from "./konfig.js?v=17";
+import { anmeldungEinrichten, codeAus, zeigeEinladung, zeigePin } from "./anmelden.js?v=17";
+import { adminEinrichten, zeigeAdmin } from "./admin.js?v=17";
+import { nachschlagenEinrichten, zeigeNachschlagen } from "./nachschlagen.js?v=17";
+import { gruppenEinrichten, zeigeGruppen } from "./gruppen.js?v=17";
+import { planerEinrichten, zeigePlaner } from "./planer.js?v=17";
 
 let ich = null;
 
@@ -25,6 +25,7 @@ async function ichSelbst() {
 async function zeigeStart() {
   ich = await ichSelbst();
   if (!ich) return ohneSitzung();
+  farbenLaden();
   $("#start-hallo").textContent = `Hallo ${ich.name}`;
   $("#start-umgebung").textContent = UMGEBUNG === "test" ? "Testumgebung" : "";
   $("#admin-knoepfe").hidden = ich.rolle !== "admin";

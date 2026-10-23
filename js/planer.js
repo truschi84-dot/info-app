@@ -1,8 +1,11 @@
 // Planer: Monatskalender mit Terminen (je Gruppe) und Abwesenheiten,
-// eigener Urlaub (Antrag), fuer Admins die offenen Antraege.
+// eigener Urlaub (Antrag), Uebersicht je Abteilung (Leiter: ihre, Freigeber
+// und Admin: alle) mit Hoechstzahl gleichzeitig Abwesender, offene Antraege.
 // Geschrieben wird ueber die Datenbank-Funktionen abwesenheit_* und direkt
 // in "termine" - die Zugriffsregeln entscheiden, wer was darf.
-import { $, db, element, knopfBeschaeftigt, meldung, zeige } from "./gemeinsam.js?v=16";
+import {
+  $, abteilungsChip, db, eingefaerbt, element, farbenLaden, hoechstzahl, knopfBeschaeftigt, meldung, zeige,
+} from "./gemeinsam.js?v=17";
 
 const ARTEN = { urlaub: "Urlaub", schule: "Schule / Fortbildung", sonstiges: "Sonstiges" };
 const STATUS = { beantragt: "beantragt", genehmigt: "genehmigt", abgelehnt: "abgelehnt", zurueckgezogen: "zurückgezogen" };
@@ -14,6 +17,9 @@ let ansicht = "kalender";
 let monat = ersterImMonat(new Date());
 let gewaehlterTag = isoTag(new Date());
 let namen = new Map();
+let abtVon = new Map();   // profil_id -> Abteilung
+let leute = [];           // aktive Personen
+let geleitet = new Set(); // Abteilungen, die ich leite
 let gruppen = [];          // Gruppen, die ich sehe: { id, name, art, schreiben }
 let termine = [];
 let abwesenheiten = [];   // im angezeigten Monat
@@ -36,12 +42,22 @@ function zeitraum(a) {
   return a.von === a.bis ? tagLesbar(a.von) + halb : `${tagLesbar(a.von)} – ${tagLesbar(a.bis)}`;
 }
 function uhrzeit(iso) { return new Date(iso).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }); }
+function tageZwischen(von, bis) {
+  const tage = [];
+  const [j, m, t] = von.split("-").map(Number);
+  for (let d = new Date(j, m - 1, t); isoTag(d) <= bis && tage.length < 366; d.setDate(d.getDate() + 1)) tage.push(isoTag(d));
+  return tage;
+}
+const tagKurz = (iso) => `${iso.slice(8)}.${iso.slice(5, 7)}.`;
 
 export function planerEinrichten(zurueck) {
   $("#planer-zurueck").addEventListener("click", zurueck);
   $("#monat-zurueck").addEventListener("click", () => { monat = new Date(monat.getFullYear(), monat.getMonth() - 1, 1); kalenderLaden(); });
   $("#monat-vor").addEventListener("click", () => { monat = new Date(monat.getFullYear(), monat.getMonth() + 1, 1); kalenderLaden(); });
   $("#monat-heute").addEventListener("click", () => { monat = ersterImMonat(new Date()); gewaehlterTag = isoTag(new Date()); kalenderLaden(); });
+  $("#ueb-zurueck").addEventListener("click", () => { monat = new Date(monat.getFullYear(), monat.getMonth() - 1, 1); abteilungLaden(); });
+  $("#ueb-vor").addEventListener("click", () => { monat = new Date(monat.getFullYear(), monat.getMonth() + 1, 1); abteilungLaden(); });
+  $("#ueb-heute").addEventListener("click", () => { monat = ersterImMonat(new Date()); abteilungLaden(); });
   $("#termin-neu").addEventListener("click", () => terminFormular(null));
   $("#termin-form").addEventListener("submit", (e) => { e.preventDefault(); terminSpeichern(); });
   $("#termin-abbrechen").addEventListener("click", () => { $("#termin-bereich").hidden = true; });
@@ -58,16 +74,19 @@ export async function zeigePlaner(angemeldet) {
     db.from("unterhaltungen").select("id, name, art, archiviert").neq("art", "einzel").order("name"),
     db.from("mitglieder").select("unterhaltung_id, darf_schreiben").eq("nutzer_id", ich.id),
     db.from("abteilungsleiter").select("abteilung").eq("profil_id", ich.id),
+    farbenLaden(),
   ]);
   namen = new Map((p.data || []).map((x) => [x.id, x.name]));
+  abtVon = new Map((p.data || []).map((x) => [x.id, x.abteilung]));
+  leute = (p.data || []).filter((x) => x.aktiv);
   const meine = new Map((m.data || []).map((x) => [x.unterhaltung_id, x.darf_schreiben]));
   gruppen = (g.data || []).filter((x) => !x.archiviert).map((x) => ({
     ...x, schreiben: ich.rolle === "admin" || x.art === "offen" || meine.get(x.id) === true,
   }));
 
   // Fuer wen darf ich eintragen? Admin und Freigeber: alle; Leiter: ihre Abteilungen.
-  const geleitet = new Set((l.data || []).map((x) => x.abteilung));
-  const alle = ich.rolle === "admin" || ich.darf_freigeben;
+  geleitet = new Set((l.data || []).map((x) => x.abteilung));
+  const alle = alleAbteilungen();
   team = (p.data || []).filter((x) => x.aktiv && x.id !== ich.id && (alle || geleitet.has(x.abteilung)));
   istLeiter = geleitet.size > 0;
   $("#u-fuer").replaceChildren(element("option", { value: "", text: "mich" }),
@@ -79,7 +98,7 @@ export async function zeigePlaner(angemeldet) {
 
 function ansichtWaehlen(name) {
   const reiter = [["kalender", "📅 Kalender"], ["urlaub", "🌴 Mein Urlaub"]];
-  if (istLeiter || ich.rolle === "admin") reiter.push(["abteilung", "👥 Abteilung"]);
+  if (istLeiter || alleAbteilungen()) reiter.push(["abteilung", "👥 Übersicht"]);
   if (ich.darf_freigeben) reiter.push(["antraege", "✅ Anträge"]);
   if (!reiter.some(([k]) => k === name)) name = "kalender";
   ansicht = name;
@@ -153,12 +172,12 @@ const KAL_ZEILEN = 4;
 function kalTexte(tt, weg) {
   const zeilen = [
     ...tt.filter((t) => !t.abgesagt_am).map((t) => ({ k: "t", text: (t.ganztags ? "" : uhrzeit(t.beginn) + " ") + t.titel })),
-    ...weg.map((a) => ({ k: "w", text: `${a.status === "beantragt" ? "⏳" : "🌴"} ${namen.get(a.profil_id) || "?"}` })),
+    ...weg.map((a) => ({ k: "w", text: `${a.status === "beantragt" ? "⏳" : "🌴"} ${namen.get(a.profil_id) || "?"}`, abt: abtVon.get(a.profil_id) })),
   ];
   const sichtbar = zeilen.slice(0, zeilen.length > KAL_ZEILEN ? KAL_ZEILEN - 1 : KAL_ZEILEN);
   const rest = zeilen.length - sichtbar.length;
   return element("span", { klasse: "kal-texte" },
-    ...sichtbar.map((z) => element("span", { klasse: z.k, text: z.text })),
+    ...sichtbar.map((z) => eingefaerbt(element("span", { klasse: z.k, text: z.text }), z.abt)),
     rest ? element("span", { klasse: "mehr", text: `+${rest} mehr` }) : null);
 }
 
@@ -176,7 +195,8 @@ function tagZeigen(iso) {
     ...weg.map((a) => element("li", { klasse: "tag-eintrag" },
       element("div", { klasse: "eintrag-knopf ruhig" },
         element("strong", { text: `${a.status === "beantragt" ? "⏳" : "🌴"} ${namen.get(a.profil_id) || "?"}` }),
-        element("span", { klasse: "leise", text: `${ARTEN[a.art]}${a.halbtags ? " · " + a.halbtags : ""}${a.status === "beantragt" ? " · beantragt" : ""}` }),
+        element("span", {}, abtVon.get(a.profil_id) ? abteilungsChip(abtVon.get(a.profil_id)) : null,
+          element("span", { klasse: "leise", text: ` ${ARTEN[a.art]}${a.halbtags ? " · " + a.halbtags : ""}${a.status === "beantragt" ? " · beantragt" : ""}` })),
       ))),
   ];
   $("#tag-titel").textContent = tagLesbar(iso);
@@ -278,6 +298,11 @@ async function urlaubBeantragen() {
   const von = $("#u-von").value;
   const bis = $("#u-bis").value;
   if (!von || !bis) return meldung("#urlaub-meldung", "Bitte Anfang und Ende wählen.");
+  const fuer = $("#u-fuer").value || ich.id;
+  const { data: dazu } = await db.from("abwesenheiten").select("profil_id, von, bis")
+    .eq("status", "genehmigt").lte("von", bis).gte("bis", von);
+  const warnung = engpass({ profil_id: fuer, von, bis }, dazu || []);
+  if (warnung && !confirm(warnung + "\n\nTrotzdem eintragen?")) return;
   const knopf = $("#urlaub-los");
   knopfBeschaeftigt(knopf, true);
   const { error } = await db.rpc("abwesenheit_beantragen", {
@@ -304,8 +329,105 @@ async function zurueckziehen(x, knopf, danach = urlaubLaden) {
   danach();
 }
 
-// ── Abteilung (Leiter): Abwesenheiten der eigenen Leute ab heute ────────
+// ── Hoechstzahl: an welchen Tagen waeren zu viele aus einer Abteilung weg? ─
+// x = { profil_id, von, bis }, genehmigt = andere genehmigte Abwesenheiten.
+function engpass(x, genehmigt) {
+  const abt = abtVon.get(x.profil_id);
+  const max = hoechstzahl(abt);
+  if (!max) return "";
+  const kollegen = genehmigt.filter((a) => a.profil_id !== x.profil_id && abtVon.get(a.profil_id) === abt);
+  const zuViel = tageZwischen(x.von, x.bis).filter((tag) => {
+    const weg = new Set(kollegen.filter((a) => a.von <= tag && a.bis >= tag).map((a) => a.profil_id));
+    return weg.size + 1 > max;
+  });
+  if (!zuViel.length) return "";
+  const tage = zuViel.length > 6 ? `${zuViel.slice(0, 5).map(tagKurz).join(", ")} und ${zuViel.length - 5} weitere Tage` : zuViel.map(tagKurz).join(", ");
+  return `⚠ ${abt}: erlaubt sind höchstens ${max} gleichzeitig – am ${tage} wären es mehr.`;
+}
+
+const alleAbteilungen = () => ich.rolle === "admin" || ich.darf_freigeben;
+
+// ── Uebersicht: wer ist wann weg, je Abteilung, ein Monat ───────────────
+async function belegungZeichnen() {
+  const start = isoTag(monat);
+  const ende = isoTag(new Date(monat.getFullYear(), monat.getMonth() + 1, 0));
+  $("#ueb-monat").textContent = `${MONATE[monat.getMonth()]} ${monat.getFullYear()}`;
+  const { data, error } = await db.from("abwesenheiten").select("profil_id, von, bis, halbtags, status")
+    .lte("von", ende).gte("bis", start).in("status", ["genehmigt", "beantragt"]);
+  if (error) return meldung("#planer-meldung", "Übersicht konnte nicht laden: " + error.message);
+
+  const abteilungen = [...new Set(leute.map((x) => x.abteilung).filter(Boolean))].sort()
+    .filter((a) => alleAbteilungen() || geleitet.has(a));
+  const ohne = alleAbteilungen() && leute.some((x) => !x.abteilung);
+  $("#uebersicht-hinweis").textContent = alleAbteilungen()
+    ? "Alle Abteilungen. Die Höchstzahl stellst du rechts neben der Abteilung ein."
+    : `Deine Abteilung${abteilungen.length === 1 ? "" : "en"}: ${abteilungen.join(", ") || "–"}`;
+  await farbenLaden();
+
+  const tage = tageZwischen(start, ende);
+  const heute = isoTag(new Date());
+  const wochenende = (iso) => { const [j, m, t] = iso.split("-").map(Number); return [0, 6].includes(new Date(j, m - 1, t).getDay()); };
+  const tagKlasse = (iso) => (wochenende(iso) ? " we" : "") + (iso === heute ? " heute" : "");
+  const kopf = element("tr", {}, element("th", { klasse: "name", text: "" }),
+    ...tage.map((t) => element("th", { klasse: "tag" + tagKlasse(t), text: String(Number(t.slice(8))) })));
+
+  const zeilen = [];
+  for (const abt of [...abteilungen, ...(ohne ? [null] : [])]) {
+    const leuteHier = leute.filter((x) => x.abteilung === abt);
+    const max = abt ? hoechstzahl(abt) : null;
+    const abwHier = data.filter((a) => leuteHier.some((x) => x.id === a.profil_id));
+    const kopfZelle = element("th", { klasse: "name" }, abt ? abteilungsChip(abt) : element("span", { klasse: "leise", text: "ohne Abteilung" }),
+      abt && alleAbteilungen() ? hoechstzahlWahl(abt, max) : max ? element("span", { klasse: "klein", text: ` max. ${max}` }) : null);
+    zeilen.push(eingefaerbt(element("tr", { klasse: "abt-zeile" }, kopfZelle, ...tage.map((t) => {
+      const weg = new Set(abwHier.filter((a) => a.status === "genehmigt" && a.von <= t && a.bis >= t).map((a) => a.profil_id)).size;
+      const offen = abwHier.some((a) => a.status === "beantragt" && a.von <= t && a.bis >= t);
+      const stufe = max && weg > max ? " drueber" : max && weg === max ? " voll" : "";
+      return element("td", { klasse: "zahl-zelle" + tagKlasse(t) + stufe, title: `${tagKurz(t)}: ${weg} weg${max ? `, höchstens ${max}` : ""}${offen ? ", dazu offene Anträge" : ""}`,
+        text: weg ? String(weg) + (offen ? "⏳" : "") : offen ? "⏳" : "" });
+    })), abt));
+    for (const p of leuteHier) {
+      const eigene = abwHier.filter((a) => a.profil_id === p.id);
+      zeilen.push(element("tr", {}, element("th", { klasse: "name person-name", text: p.name }), ...tage.map((t) => {
+        const a = eigene.find((x) => x.von <= t && x.bis >= t);
+        if (!a) return element("td", { klasse: tagKlasse(t).trim() });
+        return eingefaerbt(element("td", { klasse: "weg" + (a.status === "beantragt" ? " offen" : "") + tagKlasse(t),
+          title: `${p.name}: ${a.status === "beantragt" ? "beantragt" : "genehmigt"}${a.halbtags ? " (" + a.halbtags + ")" : ""}`,
+          text: a.halbtags ? "½" : "" }), abt);
+      })));
+    }
+  }
+  $("#belegung").replaceChildren(zeilen.length
+    ? element("table", { klasse: "belegung" }, element("thead", {}, kopf), element("tbody", {}, ...zeilen))
+    : element("p", { klasse: "leise", text: "Noch keine Personen mit Abteilung." }));
+  // Heute in den sichtbaren Bereich schieben (am Handy ist die Tabelle breiter als der Bildschirm).
+  const rahmen = $("#belegung");
+  const heuteSpalte = $("th.heute", rahmen);
+  const namensSpalte = $("th.name", rahmen);
+  rahmen.scrollLeft = 0; // anderer Monat: wieder vorn anfangen
+  if (heuteSpalte && namensSpalte) {
+    rahmen.scrollLeft += heuteSpalte.getBoundingClientRect().left - rahmen.getBoundingClientRect().left
+      - namensSpalte.getBoundingClientRect().width - 2 * heuteSpalte.getBoundingClientRect().width;
+  }
+}
+
+function hoechstzahlWahl(abt, max) {
+  const wahl = element("select", { klasse: "hoechst", "aria-label": `Höchstzahl gleichzeitig weg in ${abt}` },
+    element("option", { value: "", text: "max. –" }),
+    ...Array.from({ length: 10 }, (_, i) => element("option", { value: String(i + 1), text: `max. ${i + 1}` })));
+  wahl.value = max ? String(max) : "";
+  wahl.addEventListener("change", async () => {
+    wahl.disabled = true;
+    const { error } = await db.rpc("abteilung_hoechstzahl_setzen", { abteilung: abt, zahl: wahl.value ? Number(wahl.value) : null });
+    wahl.disabled = false;
+    if (error) return meldung("#planer-meldung", "Höchstzahl ging nicht: " + error.message);
+    belegungZeichnen();
+  });
+  return wahl;
+}
+
+// ── Abteilung (Leiter, Freigeber): Uebersicht + Abwesenheiten ab heute ──
 async function abteilungLaden() {
+  belegungZeichnen();
   const heute = isoTag(new Date());
   const ids = team.map((x) => x.id);
   const { data, error } = ids.length
@@ -339,6 +461,7 @@ async function antraegeLaden() {
   $("#antraege-liste").replaceChildren(...(a.data.length ? a.data.map((x) => {
     const antwort = element("input", { placeholder: "Antwort (freiwillig)", maxlength: "500" });
     const ueberschneidung = abwesenheitenAndere(x);
+    const zuViele = engpass(x, genehmigte);
     return element("li", { klasse: "antrag" },
       element("div", { klasse: "antrag-kopf" },
         element("strong", { text: `${namen.get(x.profil_id) || "?"} · ${ARTEN[x.art]}`
@@ -346,9 +469,13 @@ async function antraegeLaden() {
         element("span", { klasse: "leise", text: zeitraum(x) })),
       notiz.get(x.id)?.bemerkung ? element("p", { klasse: "klein", text: `Bemerkung: ${notiz.get(x.id).bemerkung}` }) : null,
       ueberschneidung ? element("p", { klasse: "klein warnung", text: ueberschneidung }) : null,
+      zuViele ? element("p", { klasse: "klein warnung stark", text: zuViele }) : null,
       element("label", { klasse: "feld" }, element("span", { text: "Antwort" }), antwort),
       element("div", { klasse: "knoepfe klein" },
-        element("button", { klasse: "haupt", text: "Genehmigen", onclick: (e) => entscheiden(x, true, antwort.value, e.currentTarget) }),
+        element("button", { klasse: "haupt", text: "Genehmigen", onclick: (e) => {
+          if (zuViele && !confirm(zuViele + "\n\nTrotzdem genehmigen?")) return;
+          entscheiden(x, true, antwort.value, e.currentTarget);
+        } }),
         element("button", { klasse: "gefahr", text: "Ablehnen", onclick: (e) => entscheiden(x, false, antwort.value, e.currentTarget) })));
   }) : [element("li", { klasse: "leise", text: "Keine offenen Anträge." })]));
 }

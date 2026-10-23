@@ -1,18 +1,27 @@
 // Admin-Seite "Personen": anlegen, einladen (QR + Druck), Geraete sperren,
-// PIN-Sperre aufheben, deaktivieren / aktivieren. Lesen geht direkt ueber die
+// PIN-Sperre aufheben, deaktivieren / aktivieren, Personen ohne App eintragen,
+// Abteilungsfarben waehlen. Lesen geht direkt ueber die
 // Datenbank (Zugriffsregeln), Aendern ueber die Cloud-Funktion admin-personen.
-import { $, datumZeit, db, element, funktion, geraetLesen, haken, knopfBeschaeftigt, meldung, zeige } from "./gemeinsam.js?v=16";
+import {
+  $, FARBEN, abteilungsChip, abteilungsFarbe, datumZeit, db, element, farbenLaden, funktion, geraetLesen, haken,
+  knopfBeschaeftigt, meldung, zeige,
+} from "./gemeinsam.js?v=17";
 
 const PIN_SPERRE_AB = 5;
 let ich = null;
 let abteilungen = [];   // alle vorkommenden Abteilungen (aus den Personen)
 let leitung = [];       // { profil_id, abteilung }
+let personen = [];      // fuer die Doppelt-Pruefung beim Anlegen
 
 export function adminEinrichten(zurueck) {
   $("#admin-zurueck").addEventListener("click", zurueck);
   $("#anlegen").addEventListener("submit", (e) => { e.preventDefault(); personAnlegen(); });
   $("#anzeige-drucken").addEventListener("click", () => window.print());
   $("#anzeige-schliessen").addEventListener("click", () => { $("#einladung-anzeige").hidden = true; });
+  $("#anlegen-app").addEventListener("change", (e) => {
+    $("#anlegen-los").textContent = e.currentTarget.checked ? "Anlegen und einladen" : "Eintragen";
+  });
+  $("#sammel-los").addEventListener("click", sammelEintragen);
 }
 
 export async function zeigeAdmin(angemeldet) {
@@ -24,25 +33,65 @@ export async function zeigeAdmin(angemeldet) {
 async function personenLaden() {
   const liste = $("#personen");
   meldung("#admin-meldung", "");
-  const [p, g, l] = await Promise.all([
+  const [p, g, l, e] = await Promise.all([
     db.from("profile").select("id, name, abteilung, rolle, aktiv, darf_freigeben").order("name"),
     db.from("geraete").select("id, profil_id, bezeichnung, erstellt_am, gesperrt_am, fehlversuche").order("erstellt_am"),
     db.from("abteilungsleiter").select("profil_id, abteilung"),
+    db.from("einladungen").select("profil_id, gueltig_bis").is("eingeloest_am", null).is("widerrufen_am", null)
+      .gt("gueltig_bis", new Date().toISOString()),
+    farbenLaden(),
   ]);
-  if (p.error || g.error || l.error) {
-    meldung("#admin-meldung", "Liste konnte nicht geladen werden: " + (p.error || g.error || l.error).message);
+  if (p.error || g.error || l.error || e.error) {
+    meldung("#admin-meldung", "Liste konnte nicht geladen werden: " + (p.error || g.error || l.error || e.error).message);
     return;
   }
+  personen = p.data;
   leitung = l.data;
   abteilungen = [...new Set([...p.data.map((x) => x.abteilung), ...leitung.map((x) => x.abteilung)].filter(Boolean))].sort();
   $("#abteilungen-liste").replaceChildren(...abteilungen.map((a) => element("option", { value: a })));
-  liste.replaceChildren(...p.data.map((person) => personKarte(person, g.data.filter((x) => x.profil_id === person.id))));
+  farbenZeichnen();
+  liste.replaceChildren(...p.data.map((person) => personKarte(person,
+    g.data.filter((x) => x.profil_id === person.id), e.data.find((x) => x.profil_id === person.id))));
 }
 
-function personKarte(person, geraete) {
+// ── Abteilungsfarben ────────────────────────────────────────────────────
+function farbenZeichnen() {
+  $("#farben").replaceChildren(...(abteilungen.length ? abteilungen.map((a) => {
+    const anzahl = personen.filter((x) => x.abteilung === a && x.aktiv).length;
+    return element("li", {},
+      abteilungsChip(a),
+      element("span", { klasse: "klein", text: `${anzahl} Person${anzahl === 1 ? "" : "en"}` }),
+      element("div", { klasse: "farbfelder" }, ...FARBEN.map((f) => {
+        const k = element("button", {
+          type: "button", klasse: "farbfeld" + (f === abteilungsFarbe(a) ? " an" : ""), title: f, "aria-label": `Farbe ${f} für ${a}`,
+          onclick: (ev) => farbeSetzen(a, f, ev.currentTarget),
+        });
+        k.style.setProperty("--abt", f);
+        return k;
+      })));
+  }) : [element("li", { klasse: "leise", text: "Noch keine Abteilungen – sie entstehen, sobald eine Person eine Abteilung bekommt." })]));
+}
+
+async function farbeSetzen(abteilung, farbe, knopf) {
+  knopfBeschaeftigt(knopf, true);
+  const { error } = await db.from("abteilungen").upsert({ name: abteilung, farbe });
+  knopfBeschaeftigt(knopf, false);
+  if (error) return meldung("#admin-meldung", "Farbe ging nicht: " + error.message);
+  personenLaden();
+}
+
+function personKarte(person, geraete, offeneEinladung) {
   const selbst = person.id === ich.id;
+  // Nie ein Gerät eingerichtet: die Person nutzt die App (noch) nicht.
+  const ohneApp = !geraete.length;
   const knoepfe = element("div", { klasse: "knoepfe klein" });
-  if (person.aktiv) {
+  if (person.aktiv && ohneApp) {
+    knoepfe.append(element("button", { klasse: "neben", text: offeneEinladung ? "📲 Neue Einladung" : "📲 Jetzt einladen",
+      onclick: (e) => einladen(person, "erstes_geraet", e.currentTarget) }));
+    if (!selbst) {
+      knoepfe.append(element("button", { klasse: "gefahr", text: "Deaktivieren", onclick: (e) => deaktivieren(person, e.currentTarget) }));
+    }
+  } else if (person.aktiv) {
     knoepfe.append(
       element("button", { klasse: "neben", text: "➕ Weiteres Gerät", onclick: (e) => einladen(person, "weiteres_geraet", e.currentTarget) }),
       element("button", { klasse: "neben", text: "🔑 Neue PIN", onclick: (e) => einladen(person, "pin_neu", e.currentTarget) }),
@@ -59,22 +108,33 @@ function personKarte(person, geraete) {
   const gesperrt = geraete.filter((g) => g.gesperrt_am);
   const geraeteListe = element("ul", { klasse: "geraete" });
   for (const g of aktiv) geraeteListe.append(geraetZeile(g));
-  if (!aktiv.length) geraeteListe.append(element("li", { klasse: "leise", text: "Kein aktives Gerät" }));
+  if (ohneApp) {
+    geraeteListe.append(element("li", { klasse: "leise", text: offeneEinladung
+      ? `Einladung offen bis ${datumZeit(offeneEinladung.gueltig_bis)} Uhr`
+      : "Nutzt die App nicht – nur eingetragen" }));
+  } else if (!aktiv.length) geraeteListe.append(element("li", { klasse: "leise", text: "Kein aktives Gerät" }));
   if (gesperrt.length) {
     geraeteListe.append(element("li", {}, element("details", { klasse: "gesperrte" },
       element("summary", { klasse: "leise", text: `${gesperrt.length} gesperrte${gesperrt.length === 1 ? "s" : ""} Gerät${gesperrt.length === 1 ? "" : "e"}` }),
       element("ul", { klasse: "geraete" }, ...gesperrt.map(geraetZeile)))));
   }
 
-  return element("article", { klasse: "person" + (person.aktiv ? "" : " aus") },
+  const karte = element("article", { klasse: "person" + (person.aktiv ? "" : " aus") },
     element("div", { klasse: "person-kopf" },
       element("strong", { text: person.name + (selbst ? " (du)" : "") }),
-      element("span", { klasse: "leise", text: [person.abteilung, person.rolle === "admin" ? "Admin" : null, person.aktiv ? null : "deaktiviert"].filter(Boolean).join(" · ") }),
+      person.abteilung ? abteilungsChip(person.abteilung) : null,
+      ohneApp && person.aktiv ? element("span", { klasse: "ohne-app", text: "ohne App" }) : null,
+      element("span", { klasse: "leise", text: [person.rolle === "admin" ? "Admin" : null, person.aktiv ? null : "deaktiviert"].filter(Boolean).join(" · ") }),
     ),
     geraeteListe,
     person.aktiv ? rechteBereich(person) : null,
     knoepfe,
   );
+  if (person.abteilung) {
+    karte.style.setProperty("--abt", abteilungsFarbe(person.abteilung));
+    karte.classList.add("abt-strich");
+  }
+  return karte;
 }
 
 // Abteilung, Freigeber (genehmigt Urlaub), welche Abteilungen jemand leitet.
@@ -131,19 +191,56 @@ async function aktion(knopf, body, ziel = "#admin-meldung") {
 async function personAnlegen() {
   const name = $("#anlegen-name").value.trim();
   if (!name) return meldung("#anlegen-meldung", "Bitte einen Namen eingeben.");
+  if (doppelt(name) && !confirm(`„${name}" gibt es schon. Trotzdem noch einmal anlegen?`)) return;
+  const mitApp = $("#anlegen-app").checked;
   const d = await aktion($("#anlegen-los"), {
-    aktion: "anlegen", name, abteilung: $("#anlegen-abteilung").value.trim(), rolle: $("#anlegen-rolle").value,
+    aktion: "anlegen", name, abteilung: $("#anlegen-abteilung").value.trim(), rolle: $("#anlegen-rolle").value, ohne_app: !mitApp,
   }, "#anlegen-meldung");
   if (!d) return;
-  meldung("#anlegen-meldung", "");
   $("#anlegen").reset();
-  einladungZeigen(name, "erstes_geraet", d);
+  $("#anlegen-los").textContent = "Anlegen und einladen";
+  if (mitApp) {
+    meldung("#anlegen-meldung", "");
+    einladungZeigen(name, "erstes_geraet", d);
+  } else {
+    meldung("#anlegen-meldung", `${name} ist eingetragen. Einladen geht später mit „Jetzt einladen".`, "hinweis");
+  }
+  personenLaden();
+}
+
+const doppelt = (name) => personen.some((p) => p.aktiv && p.name.toLowerCase() === name.toLowerCase());
+
+// Eine Zeile je Person: "Name, Abteilung" - auch ; oder Tab (aus Excel kopiert).
+function sammelZeilen(text) {
+  return text.split(/\r?\n/).map((z) => z.trim()).filter(Boolean).map((z) => {
+    const [name, ...rest] = z.split(/\t|;|,/);
+    return { name: name.trim(), abteilung: rest.join(" ").trim() };
+  });
+}
+
+async function sammelEintragen() {
+  const zeilen = sammelZeilen($("#sammel-text").value);
+  if (!zeilen.length) return meldung("#sammel-meldung", "Bitte mindestens eine Zeile eingeben.");
+  const falsch = zeilen.findIndex((z) => !z.name || z.name.length > 80 || z.abteilung.length > 60);
+  if (falsch >= 0) return meldung("#sammel-meldung", `Zeile ${falsch + 1}: Name fehlt oder ist zu lang.`);
+  const schonDa = zeilen.filter((z) => doppelt(z.name)).map((z) => z.name);
+  const neu = zeilen.filter((z) => !doppelt(z.name));
+  if (!neu.length) return meldung("#sammel-meldung", "Alle gibt es schon – nichts eingetragen.", "hinweis");
+  const frage = `${neu.length} Person${neu.length === 1 ? "" : "en"} ohne App eintragen?`
+    + (schonDa.length ? `\n\nSchon vorhanden, wird übersprungen: ${schonDa.join(", ")}` : "");
+  if (!confirm(frage)) return;
+  const d = await aktion($("#sammel-los"), { aktion: "sammel_anlegen", personen: neu }, "#sammel-meldung");
+  if (!d) return;
+  $("#sammel-text").value = "";
+  meldung("#sammel-meldung", `${d.angelegt} eingetragen.`, "hinweis");
   personenLaden();
 }
 
 async function einladen(person, zweck, knopf) {
   const d = await aktion(knopf, { aktion: "einladen", profil_id: person.id, zweck });
-  if (d) einladungZeigen(person.name, zweck, d);
+  if (!d) return;
+  einladungZeigen(person.name, zweck, d);
+  personenLaden(); // "Einladung offen bis ..." an der Person zeigen
 }
 
 async function deaktivieren(person, knopf) {

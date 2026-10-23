@@ -12,7 +12,7 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="icon" href="icons/icon-192.png">
 <title>Info-App</title>
-<link rel="stylesheet" href="css/app.css?v=7">
+<link rel="stylesheet" href="css/app.css?v=10">
 </head>
 <body>
 
@@ -168,7 +168,16 @@
   </section>
 
   <section id="planer-abteilung" hidden>
-    <h2>Meine Abteilung</h2>
+    <div class="monat-kopf">
+      <button id="ueb-zurueck" class="neben klein-knopf" aria-label="Voriger Monat">‹</button>
+      <h2 id="ueb-monat"></h2>
+      <button id="ueb-vor" class="neben klein-knopf" aria-label="Nächster Monat">›</button>
+      <button id="ueb-heute" class="neben klein-knopf">Heute</button>
+    </div>
+    <p class="klein" id="uebersicht-hinweis"></p>
+    <div id="belegung" class="belegung-rahmen"></div>
+    <p class="klein belegung-legende">🌴 genehmigt · ⏳ beantragt · Zahl = so viele sind an dem Tag weg · <span class="voll-muster">gelb</span> Höchstzahl erreicht · <span class="drueber-muster">rot</span> darüber</p>
+    <h2>Geplant ab heute</h2>
     <p class="klein" id="abteilung-hinweis"></p>
     <ul id="abteilung-liste" class="antraege"></ul>
   </section>
@@ -293,9 +302,25 @@
         <select id="anlegen-rolle"><option value="mitarbeiter">Mitarbeiter</option><option value="admin">Admin</option></select>
       </label>
     </div>
+    <label class="haken"><input type="checkbox" id="anlegen-app" checked><span>Nutzt die App selbst (Einladung mit QR-Code)</span></label>
+    <p class="klein">Ohne Haken wird die Person nur eingetragen – z. B. damit ihr Urlaub geplant werden kann. Einladen geht später jederzeit.</p>
     <button id="anlegen-los" class="haupt" type="submit">Anlegen und einladen</button>
     <p id="anlegen-meldung" class="meldung" hidden></p>
   </form>
+
+  <details class="anlegen sammel">
+    <summary><strong>Viele auf einmal eintragen</strong> <span class="klein">(ohne App)</span></summary>
+    <p class="klein">Eine Zeile je Person: <strong>Name, Abteilung</strong>. Auch aus Excel einfügen (zwei Spalten) geht.</p>
+    <textarea id="sammel-text" rows="6" placeholder="Max Muster, Versand&#10;Erika Beispiel, Lager"></textarea>
+    <div class="knoepfe"><button id="sammel-los" class="haupt" type="button">Alle eintragen</button></div>
+    <p id="sammel-meldung" class="meldung" hidden></p>
+  </details>
+
+  <section class="anlegen">
+    <h2>Abteilungen und Farben</h2>
+    <p class="klein">Die Farbe erscheint überall, wo die Abteilung steht: bei Personen, im Wiki und im Urlaubskalender.</p>
+    <ul id="farben" class="farben-liste"></ul>
+  </section>
 
   <datalist id="abteilungen-liste"></datalist>
   <h2>Alle Personen</h2>
@@ -327,6 +352,6 @@
 
 <script src="lib/supabase.min.js?v=2.45.4"></script>
 <script src="lib/qrcode.js?v=2.0.4"></script>
-<script type="module" src="js/app.js?v=16"></script>
+<script type="module" src="js/app.js?v=17"></script>
 </body>
 </html>

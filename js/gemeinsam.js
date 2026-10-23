@@ -3,7 +3,7 @@
 // nie als HTML (Plan Abschnitt 5, Falle 8).
 // Alle eigenen Module tragen dieselbe ?v=-Nummer wie in index.html. Ein Modul
 // muss ueberall mit derselben Adresse eingebunden werden, sonst laeuft es doppelt.
-import { SUPABASE, UMGEBUNG } from "./konfig.js?v=16";
+import { SUPABASE, UMGEBUNG } from "./konfig.js?v=17";
 
 export const db = window.supabase.createClient(SUPABASE.url, SUPABASE.key, {
   auth: { storageKey: `info-app-sitzung-${UMGEBUNG}`, persistSession: true, autoRefreshToken: true },
@@ -119,3 +119,41 @@ export function haken(text, an, speichern, meldeZiel, danach = () => {}) {
 
 export const datumZeit = (iso) =>
   new Date(iso).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+
+// ── Abteilungsfarben ────────────────────────────────────────────────────
+// Der Admin waehlt je Abteilung eine Farbe aus dieser Palette (Tabelle
+// "abteilungen"). Ohne Wahl ergibt der Name immer dieselbe Farbe der Palette.
+// Alle Farben sind kraeftig genug fuer einen Punkt auf hellem und dunklem Grund.
+export const FARBEN = ["#0f766e", "#2563eb", "#c2410c", "#7c3aed", "#be123c", "#15803d",
+  "#a16207", "#db2777", "#0891b2", "#65a30d", "#4f46e5", "#78716c"];
+// In derselben Tabelle steht die Hoechstzahl gleichzeitig Abwesender (max_weg).
+let farbenGewaehlt = new Map();
+let hoechstzahlen = new Map();
+
+export async function farbenLaden() {
+  const { data } = await db.from("abteilungen").select("name, farbe, max_weg");
+  farbenGewaehlt = new Map((data || []).filter((x) => x.farbe).map((x) => [x.name, x.farbe]));
+  hoechstzahlen = new Map((data || []).filter((x) => x.max_weg).map((x) => [x.name, x.max_weg]));
+}
+
+export const hoechstzahl = (abteilung) => hoechstzahlen.get(abteilung) || null;
+
+export function abteilungsFarbe(name) {
+  if (!name) return null;
+  if (farbenGewaehlt.has(name)) return farbenGewaehlt.get(name);
+  let h = 0;
+  for (const z of name) h = (h * 31 + z.codePointAt(0)) >>> 0;
+  return FARBEN[h % FARBEN.length];
+}
+
+// Farbe an ein Element haengen (CSS liest --abt). Per CSSOM, das erlaubt die CSP.
+export function eingefaerbt(e, abteilung) {
+  const farbe = abteilungsFarbe(abteilung);
+  if (farbe) {
+    e.style.setProperty("--abt", farbe);
+    e.classList.add("abt");
+  }
+  return e;
+}
+
+export const abteilungsChip = (name) => eingefaerbt(element("span", { klasse: "chip klein", text: name }), name);

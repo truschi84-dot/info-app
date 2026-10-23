@@ -4,7 +4,7 @@
 // Schreiben duerfen Redakteure (ueberall) und - wenn im Wiki eingeschaltet -
 // Abteilungsleiter fuer Eintraege, die nur ihren Abteilungen zugeordnet sind.
 // Am PC stehen Liste und Eintrag nebeneinander.
-import { $, datumZeit, db, element, knopfBeschaeftigt, meldung, zeige, zeigeZwei } from "./gemeinsam.js?v=16";
+import { $, abteilungsChip, datumZeit, db, element, knopfBeschaeftigt, meldung, zeige, zeigeZwei } from "./gemeinsam.js?v=17";
 
 const SUCH_PAUSE_MS = 250;
 const breit = window.matchMedia("(min-width: 1024px)");
@@ -139,7 +139,7 @@ function listenZeile(e, listenFelder) {
     element("button", { klasse: "eintrag-knopf", onclick: () => eintragZeigen(e.id) },
       element("strong", { text: e.titel }),
       zusatz ? element("span", { klasse: "leise", text: zusatz }) : null,
-      ...(e.abteilungen || []).map((a) => element("span", { klasse: "chip klein", text: a })),
+      ...(e.abteilungen || []).map((a) => abteilungsChip(a)),
       e.archiviert ? element("span", { klasse: "marke", text: "archiviert" }) : null,
       punkte ? element("span", { klasse: "zahl", text: `${punkte} Punkt${punkte === 1 ? "" : "e"}` }) : null,
     ));
@@ -179,7 +179,7 @@ async function eintragZeigen(id) {
   $("#eintrag-titel").textContent = e.data.titel;
   $("#eintrag-inhalt").replaceChildren(
     ...(e.data.abteilungen?.length ? [element("p", { klasse: "gilt-fuer" }, element("span", { klasse: "klein", text: "Gilt für: " }),
-      ...e.data.abteilungen.map((a) => element("span", { klasse: "chip klein", text: a })))] : []),
+      ...e.data.abteilungen.map((a) => abteilungsChip(a)))] : []),
     ...felder.map((f) => (f.geschuetzt && !darfGeschuetzt()
       ? schlossAnzeige(f)
       : feldAnzeige(f, alleWerte(e.data)[f.schluessel]))).filter(Boolean));
@@ -254,7 +254,7 @@ function formularZeigen(eintrag) {
   $("#f-abteilungen").replaceChildren(...auswahl.map((a) => {
     const box = element("input", { type: "checkbox", value: a });
     box.checked = gesetzt.has(a);
-    return element("label", { klasse: "haken" }, box, element("span", { text: a }));
+    return element("label", { klasse: "haken" }, box, abteilungsChip(a));
   }));
   $("#f-abteilungen-hinweis").textContent = redakteur(aktuell)
     ? "Gilt für (ohne Haken: für alle, die dieses Wiki lesen)"
