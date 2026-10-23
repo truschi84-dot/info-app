@@ -4,8 +4,12 @@
   --text: #17201e;
   --leise: #5b6763;
   --akzent: #0f766e;
+  --akzent-text: #ffffff;
   --akzent-hell: #e6f4f1;
   --rand: #dde3e1;
+  --feld: #ffffff;
+  --rot: #b42318;
+  --rot-hell: #fdecea;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -15,12 +19,17 @@
     --text: #e8eeec;
     --leise: #9aa8a4;
     --akzent: #2dd4bf;
+    --akzent-text: #062b26;
     --akzent-hell: #12302c;
     --rand: #26332f;
+    --feld: #0f1716;
+    --rot: #f97066;
+    --rot-hell: #3a1714;
   }
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 
 html, body { margin: 0; min-height: 100%; }
 
@@ -28,7 +37,7 @@ body {
   min-height: 100vh;
   display: grid;
   place-items: center;
-  padding: 24px 16px;
+  padding: max(24px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
   background: var(--hg);
   color: var(--text);
   font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -37,62 +46,130 @@ body {
 .karte {
   width: 100%;
   max-width: 420px;
-  padding: 32px 24px;
+  padding: 28px 22px;
   background: var(--karte);
   border: 1px solid var(--rand);
   border-radius: 20px;
-  text-align: center;
 }
+.karte.breit { max-width: 760px; }
+.karte.mitte { text-align: center; }
 
 .logo {
-  width: 72px;
-  height: 72px;
-  margin: 0 auto 16px;
+  width: 64px;
+  height: 64px;
+  margin: 0 0 14px;
   display: grid;
   place-items: center;
-  font-size: 36px;
+  font-size: 32px;
   background: var(--akzent-hell);
-  border-radius: 20px;
+  border-radius: 18px;
 }
+.mitte .logo { margin-inline: auto; }
 
-h1 { margin: 0 0 4px; font-size: 28px; }
-
+h1 { margin: 0 0 4px; font-size: 26px; line-height: 1.2; }
+h2 { margin: 24px 0 10px; font-size: 18px; }
 .unter { margin: 0 0 20px; color: var(--leise); }
+.klein { font-size: 14px; color: var(--leise); }
+.leise { color: var(--leise); }
 
-.status {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 0 24px;
-  padding: 6px 14px;
-  border-radius: 999px;
-  background: var(--akzent-hell);
-  color: var(--akzent);
-  font-weight: 600;
-  font-size: 14px;
-}
+.kopf { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
 
-.punkt {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--akzent);
-}
-
-.teile {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
-.teile li {
-  padding: 14px 8px;
+/* Felder */
+.feld { display: block; margin-bottom: 14px; }
+.feld span { display: block; font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+.feld input, .feld select {
+  width: 100%;
+  padding: 12px 14px;
+  font: inherit;
+  font-size: 18px;
+  color: var(--text);
+  background: var(--feld);
   border: 1px solid var(--rand);
-  border-radius: 14px;
-  font-weight: 500;
+  border-radius: 12px;
+}
+.feld input:focus, .feld select:focus { outline: 2px solid var(--akzent); outline-offset: 1px; }
+#einladung-code { letter-spacing: 2px; text-transform: uppercase; }
+input[inputmode="numeric"] { letter-spacing: 6px; }
+
+/* Knoepfe */
+.knoepfe { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
+button {
+  font: inherit;
+  font-weight: 600;
+  padding: 12px 18px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+button:disabled { opacity: .6; cursor: progress; }
+button.haupt { background: var(--akzent); color: var(--akzent-text); }
+button.neben { background: transparent; color: var(--text); border-color: var(--rand); }
+button.gefahr { background: transparent; color: var(--rot); border-color: var(--rand); }
+.knoepfe > .haupt { flex: 1 1 160px; }
+.klein-knopf { padding: 6px 12px; font-size: 14px; }
+.knoepfe.klein button { padding: 8px 12px; font-size: 14px; }
+button.laedt::after { content: " …"; }
+
+.meldung { margin: 14px 0 0; padding: 10px 12px; border-radius: 10px; background: var(--rot-hell); color: var(--rot); font-size: 15px; }
+.meldung[data-art="hinweis"] { background: var(--akzent-hell); color: var(--text); }
+
+.scanner { margin-top: 14px; border-radius: 12px; overflow: hidden; }
+#scanner-aus { margin-top: 10px; }
+
+/* Startseite */
+.teile { list-style: none; margin: 0 0 20px; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.teile li { padding: 14px 8px; border: 1px solid var(--rand); border-radius: 14px; font-weight: 500; text-align: center; }
+.teile span { display: block; font-size: 22px; margin-bottom: 4px; }
+.teile em { display: block; font-style: normal; font-size: 12px; color: var(--leise); }
+#zur-verwaltung { width: 100%; }
+
+/* Admin */
+.anlegen { padding: 16px; border: 1px solid var(--rand); border-radius: 14px; }
+.anlegen h2 { margin-top: 0; }
+.zeile { display: grid; grid-template-columns: 2fr 1.5fr 1fr; gap: 10px; }
+.personen { display: grid; gap: 10px; }
+.person { padding: 14px; border: 1px solid var(--rand); border-radius: 14px; }
+.person.aus { opacity: .65; }
+.person-kopf { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
+.geraete { list-style: none; margin: 8px 0 10px; padding: 0; font-size: 14px; }
+.geraete li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px dashed var(--rand); }
+.geraete li span { flex: 1 1 200px; }
+
+@media (max-width: 560px) {
+  .zeile { grid-template-columns: 1fr; gap: 0; }
 }
 
-.teile span { display: block; font-size: 22px; margin-bottom: 4px; }
+/* Einladung anzeigen */
+.ueberlagerung {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, .55);
+  overflow-y: auto;
+}
+.einladung-karte {
+  width: 100%;
+  max-width: 420px;
+  padding: 24px 22px;
+  background: var(--karte);
+  border-radius: 20px;
+  text-align: center;
+}
+.einladung-karte h2 { margin: 0 0 2px; font-size: 24px; }
+.qr { margin: 8px auto 4px; }
+.qr img { width: 240px; height: 240px; image-rendering: pixelated; background: #fff; padding: 6px; border-radius: 8px; }
+.code { margin: 6px 0 2px; font: 700 26px/1.2 ui-monospace, Consolas, monospace; letter-spacing: 3px; }
+.anleitung { text-align: left; font-size: 14px; margin: 14px 0; padding-left: 20px; }
+.anleitung li { margin-bottom: 4px; }
+
+@media print {
+  body { display: block; background: #fff; color: #000; padding: 0; }
+  body > main { display: none !important; }
+  .ueberlagerung { position: static; background: none; padding: 0; }
+  .einladung-karte { border: 1px solid #999; margin: 20mm auto; color: #000; background: #fff; }
+  .einladung-karte .klein, .einladung-karte .unter { color: #333; }
+  .nicht-drucken { display: none !important; }
+}

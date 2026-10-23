@@ -5,21 +5,144 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#0f766e">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Info-App">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="icon" href="icons/icon-192.png">
 <title>Info-App</title>
-<link rel="stylesheet" href="css/app.css?v=1">
+<link rel="stylesheet" href="css/app.css?v=2">
 </head>
 <body>
-<main class="karte">
+
+<!-- Laden -->
+<main class="karte mitte" data-bildschirm="laden">
   <div class="logo" aria-hidden="true">💬</div>
-  <h1>Info-App</h1>
-  <p class="unter">Chats, Nachschlagen, Planer und Notizen — auf Handy und PC.</p>
-  <p class="status"><span class="punkt" aria-hidden="true"></span> Im Aufbau</p>
-  <ul class="teile">
-    <li><span>💬</span> Chats</li>
-    <li><span>📖</span> Nachschlagen</li>
-    <li><span>📅</span> Planer</li>
-    <li><span>📝</span> Notizen</li>
-  </ul>
+  <p class="unter">Einen Moment …</p>
 </main>
+
+<!-- Einladung: Code eingeben oder scannen -->
+<main class="karte" data-bildschirm="einladung" hidden>
+  <div class="logo" aria-hidden="true">💬</div>
+  <h1>Willkommen</h1>
+  <p class="unter">Du hast einen Einladungscode bekommen? Gib ihn hier ein oder scanne den QR-Code.</p>
+  <label class="feld">
+    <span>Einladungscode</span>
+    <input id="einladung-code" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXXX-XXXXX" maxlength="20">
+  </label>
+  <div class="knoepfe">
+    <button id="einladung-weiter" class="haupt">Weiter</button>
+    <button id="einladung-scannen" class="neben">📷 QR-Code scannen</button>
+  </div>
+  <div id="scanner" class="scanner" hidden></div>
+  <button id="scanner-aus" class="neben" hidden>Kamera aus</button>
+  <p id="einladung-meldung" class="meldung" hidden></p>
+</main>
+
+<!-- PIN waehlen (nach gueltiger Einladung) -->
+<main class="karte" data-bildschirm="pin-waehlen" hidden>
+  <div class="logo" aria-hidden="true">👋</div>
+  <h1 id="pin-waehlen-hallo">Hallo</h1>
+  <p id="pin-waehlen-text" class="unter">Wähle eine 6-stellige PIN. Du brauchst sie nur, wenn du dich auf diesem Gerät neu anmelden musst.</p>
+  <label class="feld" id="pin-waehlen-feld1">
+    <span>PIN</span>
+    <input id="pin-neu" type="password" inputmode="numeric" autocomplete="new-password" maxlength="6" pattern="\d{6}">
+  </label>
+  <label class="feld" id="pin-waehlen-feld2">
+    <span>PIN wiederholen</span>
+    <input id="pin-neu2" type="password" inputmode="numeric" autocomplete="new-password" maxlength="6" pattern="\d{6}">
+  </label>
+  <div class="knoepfe">
+    <button id="pin-waehlen-los" class="haupt">Gerät einrichten</button>
+    <button id="pin-waehlen-zurueck" class="neben">Zurück</button>
+  </div>
+  <p id="pin-waehlen-meldung" class="meldung" hidden></p>
+</main>
+
+<!-- PIN eingeben (Geraet ist eingerichtet, Sitzung fehlt) -->
+<main class="karte" data-bildschirm="pin" hidden>
+  <div class="logo" aria-hidden="true">🔒</div>
+  <h1 id="pin-hallo">Hallo</h1>
+  <p class="unter">Bitte gib deine PIN ein.</p>
+  <label class="feld">
+    <span>PIN</span>
+    <input id="pin-eingabe" type="password" inputmode="numeric" autocomplete="current-password" maxlength="6" pattern="\d{6}">
+  </label>
+  <div class="knoepfe">
+    <button id="pin-los" class="haupt">Anmelden</button>
+  </div>
+  <p id="pin-meldung" class="meldung" hidden></p>
+  <p class="klein">PIN vergessen? Robert stellt dir eine neue Einladung aus.</p>
+</main>
+
+<!-- Start (angemeldet) -->
+<main class="karte breit" data-bildschirm="start" hidden>
+  <div class="kopf">
+    <div>
+      <h1 id="start-hallo">Hallo</h1>
+      <p class="unter" id="start-umgebung"></p>
+    </div>
+    <button id="abmelden" class="neben klein-knopf">Abmelden</button>
+  </div>
+  <ul class="teile">
+    <li><span>💬</span> Chats<em>kommt bald</em></li>
+    <li><span>📖</span> Nachschlagen<em>kommt bald</em></li>
+    <li><span>📅</span> Planer<em>kommt bald</em></li>
+    <li><span>📝</span> Notizen<em>kommt bald</em></li>
+  </ul>
+  <button id="zur-verwaltung" class="haupt" hidden>👥 Personen verwalten</button>
+</main>
+
+<!-- Admin: Personen -->
+<main class="karte breit" data-bildschirm="admin" hidden>
+  <div class="kopf">
+    <h1>Personen</h1>
+    <button id="admin-zurueck" class="neben klein-knopf">Zurück</button>
+  </div>
+
+  <form id="anlegen" class="anlegen" novalidate>
+    <h2>Neue Person</h2>
+    <div class="zeile">
+      <label class="feld"><span>Name</span><input id="anlegen-name" maxlength="80" required></label>
+      <label class="feld"><span>Abteilung</span><input id="anlegen-abteilung" maxlength="60"></label>
+      <label class="feld"><span>Rolle</span>
+        <select id="anlegen-rolle"><option value="mitarbeiter">Mitarbeiter</option><option value="admin">Admin</option></select>
+      </label>
+    </div>
+    <button id="anlegen-los" class="haupt" type="submit">Anlegen und einladen</button>
+    <p id="anlegen-meldung" class="meldung" hidden></p>
+  </form>
+
+  <h2>Alle Personen</h2>
+  <p id="admin-meldung" class="meldung" hidden></p>
+  <div id="personen" class="personen"></div>
+</main>
+
+<!-- Einladung anzeigen und drucken -->
+<div id="einladung-anzeige" class="ueberlagerung" hidden>
+  <div class="einladung-karte">
+    <p class="klein">Einladung zur Info-App für</p>
+    <h2 id="anzeige-name"></h2>
+    <p id="anzeige-zweck" class="unter"></p>
+    <div id="anzeige-qr" class="qr"></div>
+    <p class="code" id="anzeige-code"></p>
+    <p class="klein" id="anzeige-gueltig"></p>
+    <ol class="anleitung">
+      <li>Seite <strong id="anzeige-adresse"></strong> öffnen.</li>
+      <li>Am iPhone zuerst „Zum Home-Bildschirm" wählen und die App von dort öffnen.</li>
+      <li>In der App „QR-Code scannen" oder den Code abtippen.</li>
+      <li>Eine eigene 6-stellige PIN wählen.</li>
+    </ol>
+    <div class="knoepfe nicht-drucken">
+      <button id="anzeige-drucken" class="haupt">🖨️ Drucken</button>
+      <button id="anzeige-schliessen" class="neben">Schließen</button>
+    </div>
+  </div>
+</div>
+
+<script src="lib/supabase.min.js?v=2.45.4"></script>
+<script src="lib/qrcode.js?v=2.0.4"></script>
+<script type="module" src="js/app.js?v=5"></script>
 </body>
 </html>
