@@ -12,7 +12,7 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="icon" href="icons/icon-192.png">
 <title>Info-App</title>
-<link rel="stylesheet" href="css/app.css?v=12">
+<link rel="stylesheet" href="css/app.css?v=13">
 </head>
 <body>
 
@@ -87,10 +87,14 @@
   </div>
   <ul class="teile">
     <li><span>💬</span> Chats<em>kommt bald</em></li>
-    <li class="offen"><button id="zum-nachschlagen"><span>📖</span> Nachschlagen</button></li>
+    <li class="offen"><button id="zum-nachschlagen"><span>📖</span> Nachschlagen<em id="wiki-neu-zahl" class="neu-zahl" hidden></em></button></li>
     <li class="offen"><button id="zum-planer"><span>📅</span> Planer</button></li>
     <li><span>📝</span> Notizen<em>kommt bald</em></li>
   </ul>
+  <div id="push-bereich" class="push-bereich" hidden>
+    <p id="push-text" class="klein"></p>
+    <button id="push-knopf" class="neben klein-knopf" hidden></button>
+  </div>
   <div class="knoepfe" id="admin-knoepfe" hidden>
     <button id="zur-verwaltung" class="haupt">👥 Personen</button>
     <button id="zu-gruppen" class="haupt">🗂️ Gruppen &amp; Wikis</button>
@@ -197,6 +201,13 @@
     </div>
     <button id="nachschlagen-zurueck" class="neben klein-knopf">Zurück</button>
   </div>
+  <section id="neuigkeiten" class="neuigkeiten" hidden>
+    <div class="zeile-kopf">
+      <h2 id="neuigkeiten-titel">🔔 Neu für dich</h2>
+      <button id="alles-gesehen" class="neben klein-knopf">Alle als gelesen</button>
+    </div>
+    <ul id="neuigkeiten-liste" class="eintragsliste"></ul>
+  </section>
   <div id="sammlung-wahl" class="chips"></div>
   <label class="feld suche">
     <span class="unsichtbar">Suchen</span>
@@ -241,6 +252,7 @@
       <div id="f-abteilungen" class="haken-liste"></div>
     </div>
     <label class="feld"><span>Stichwörter (mit Komma getrennt, helfen beim Suchen)</span><input id="f-stichwoerter"></label>
+    <label class="haken"><input type="checkbox" id="f-informieren"><span>📣 Alle informieren – Push aufs Handy an alle, die diesen Eintrag lesen dürfen</span></label>
     <div class="knoepfe">
       <button id="formular-speichern" class="haupt" type="submit">Speichern</button>
       <button id="formular-abbrechen" class="neben" type="button">Abbrechen</button>
@@ -354,6 +366,6 @@
 
 <script src="lib/supabase.min.js?v=2.45.4"></script>
 <script src="lib/qrcode.js?v=2.0.4"></script>
-<script type="module" src="js/app.js?v=20"></script>
+<script type="module" src="js/app.js?v=22"></script>
 </body>
 </html>

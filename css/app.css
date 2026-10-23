@@ -366,3 +366,16 @@ button.laedt::after { content: " …"; }
   .belegung .abt-zeile th, .belegung .abt-zeile td { height: auto; }
 }
 .funktion { font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--akzent-hell); color: var(--akzent); font-weight: 600; }
+
+/* Hinweise auf Neues im Wiki */
+.neu-zahl { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--rot); color: #fff; font-style: normal; font-size: 12px; font-weight: 700; }
+.teile .neu-zahl { display: inline-block; color: #fff; font-size: 12px; }
+.neu-zahl[hidden] { display: none !important; }
+.neuigkeiten { margin: 0 0 16px; padding: 10px 12px; border: 1px solid var(--akzent); border-radius: 14px; background: var(--akzent-hell); }
+.neuigkeiten h2 { margin: 0; font-size: 17px; }
+.neuigkeiten .eintragsliste { border-top: 0; max-height: 260px; overflow-y: auto; }
+.neuigkeiten .eintragsliste li:last-child { border-bottom: 0; }
+.marke-neu { font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--rot); color: #fff; font-weight: 700; }
+.marke-geaendert { font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--akzent); color: var(--akzent-text); font-weight: 700; }
+.push-bereich { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 14px 0 0; padding: 10px 12px; border: 1px dashed var(--rand); border-radius: 12px; }
+.push-bereich p { margin: 0; flex: 1 1 200px; }

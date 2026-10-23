@@ -3,7 +3,7 @@
 import {
   $, funktion, geraeteName, geraetLesen, geraetMerken, geraetVergessen, knopfBeschaeftigt,
   meldung, neuerGeraeteschluessel, sitzungUebernehmen, zeige,
-} from "./gemeinsam.js?v=20";
+} from "./gemeinsam.js?v=22";
 
 let offeneEinladung = null; // { code, name, zweck, pin_noetig }
 let nachAnmeldung = () => {};

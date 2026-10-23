@@ -3,8 +3,10 @@
 // sammlung_felder - nichts davon ist hier fest eingebaut.
 // Schreiben duerfen Redakteure (ueberall) und - wenn im Wiki eingeschaltet -
 // Abteilungsleiter fuer Eintraege, die nur ihren Abteilungen zugeordnet sind.
-// Am PC stehen Liste und Eintrag nebeneinander.
-import { $, abteilungsChip, datumZeit, db, element, knopfBeschaeftigt, meldung, zeige, zeigeZwei } from "./gemeinsam.js?v=20";
+// Am PC stehen Liste und Eintrag nebeneinander. Oben steht, was seit dem
+// letzten Oeffnen neu oder geaendert ist (wiki_neu).
+import { $, abteilungsChip, datumZeit, db, element, knopfBeschaeftigt, meldung, zeige, zeigeZwei } from "./gemeinsam.js?v=22";
+import { allesGesehen, eintragGesehen, neuigkeiten, wikiMelden } from "./hinweise.js?v=22";
 
 const SUCH_PAUSE_MS = 250;
 const breit = window.matchMedia("(min-width: 1024px)");
@@ -23,6 +25,7 @@ let geschuetztFuer = [];       // Abteilungen, die geschuetzte Felder dieser Sam
 let offenerEintrag = null;
 let suchUhr = null;
 let suchNr = 0;
+let neu = new Map();           // Eintrag-ID -> { sammlung_id, titel, zeit, ganz_neu } (fuer mich neu/geaendert)
 
 // Fenster breiter/schmaler gezogen: offenen Eintrag in der passenden Ansicht zeigen.
 breit.addEventListener("change", () => {
@@ -40,20 +43,60 @@ export function nachschlagenEinrichten(zurueck) {
   $("#eintrag-zurueck").addEventListener("click", () => zeigeListe());
   $("#formular").addEventListener("submit", (e) => { e.preventDefault(); speichern(); });
   $("#formular-abbrechen").addEventListener("click", () => (offenerEintrag ? eintragZeigen(offenerEintrag.id) : zeigeListe()));
+  $("#alles-gesehen").addEventListener("click", async (e) => {
+    knopfBeschaeftigt(e.currentTarget, true);
+    const { error } = await allesGesehen();
+    knopfBeschaeftigt(e.currentTarget, false);
+    if (error) return meldung("#nachschlagen-meldung", "Ging nicht: " + error.message);
+    neu.clear();
+    neuigkeitenZeichnen();
+    listeLaden();
+  });
 }
+
+// Aus einer Push-Nachricht: Wiki des Eintrags waehlen und ihn zeigen.
+export async function eintragOeffnen(angemeldet, id) {
+  await zeigeNachschlagen(angemeldet);
+  const { data } = await db.from("eintraege").select("sammlung_id").eq("id", id).maybeSingle();
+  const sammlung = sammlungen.find((x) => x.id === data?.sammlung_id);
+  if (!sammlung) return meldung("#nachschlagen-meldung", "Diesen Eintrag gibt es nicht mehr oder du darfst ihn nicht sehen.");
+  if (aktuell?.id !== sammlung.id) await sammlungWaehlen(sammlung);
+  await eintragZeigen(id);
+}
+
+function neuigkeitenZeichnen() {
+  const liste = [...neu.entries()].sort((a, b) => b[1].zeit.localeCompare(a[1].zeit));
+  $("#neuigkeiten").hidden = !liste.length;
+  $("#neuigkeiten-titel").textContent = `🔔 Neu für dich (${liste.length})`;
+  const wikiName = (id) => sammlungen.find((x) => x.id === id)?.name || "";
+  $("#neuigkeiten-liste").replaceChildren(...liste.map(([id, x]) => element("li", {},
+    element("button", { klasse: "eintrag-knopf", onclick: async () => {
+      const sammlung = sammlungen.find((z) => z.id === x.sammlung_id);
+      if (sammlung && aktuell?.id !== sammlung.id) await sammlungWaehlen(sammlung);
+      eintragZeigen(id);
+    } },
+    neuMarke(x),
+    element("strong", { text: x.titel }),
+    element("span", { klasse: "leise", text: `${wikiName(x.sammlung_id)} · ${datumZeit(x.zeit)}` })))));
+}
+
+const neuMarke = (x) => element("span", { klasse: x.ganz_neu ? "marke-neu" : "marke-geaendert", text: x.ganz_neu ? "neu" : "geändert" });
 
 export async function zeigeNachschlagen(angemeldet) {
   ich = angemeldet;
   zeige("nachschlagen");
   meldung("#nachschlagen-meldung", "");
-  const [s, w, p, l] = await Promise.all([
+  const [s, w, p, l, n] = await Promise.all([
     db.from("sammlungen").select("id, name, art, beschreibung, leiter_schreiben").eq("archiviert", false).order("name"),
     db.from("sammlung_schreiben").select("sammlung_id").eq("nutzer_id", ich.id),
     db.from("profile").select("id, name, abteilung"),
     db.from("abteilungsleiter").select("abteilung").eq("profil_id", ich.id),
+    neuigkeiten(),
   ]);
   if (s.error) return meldung("#nachschlagen-meldung", "Konnte nicht laden: " + s.error.message);
   sammlungen = s.data;
+  neu = new Map(n.map((x) => [x.id, x]));
+  neuigkeitenZeichnen();
   redakteurIn = new Set((w.data || []).map((x) => x.sammlung_id));
   namen = new Map((p.data || []).map((x) => [x.id, x.name]));
   meineAbteilung = (p.data || []).find((x) => x.id === ich.id)?.abteilung || null;
@@ -138,6 +181,7 @@ function listenZeile(e, listenFelder) {
     .reduce((n, f) => n + [].concat(alleWerte(e)[f.schluessel] || []).length, 0);
   return element("li", { "data-id": e.id, klasse: offenerEintrag?.id === e.id ? "offen" : "" },
     element("button", { klasse: "eintrag-knopf", onclick: () => eintragZeigen(e.id) },
+      neu.has(e.id) ? neuMarke(neu.get(e.id)) : null,
       element("strong", { text: e.titel }),
       zusatz ? element("span", { klasse: "leise", text: zusatz }) : null,
       ...(e.abteilungen || []).map((a) => abteilungsChip(a)),
@@ -152,8 +196,8 @@ function tabelle(eintraege, listenFelder) {
     element("th", { text: "Titel" }),
     ...spalten.map((f) => element("th", { text: f.bezeichnung })),
     element("th", { text: "Abteilung" }));
-  const zeilen = eintraege.map((e) => element("tr", { onclick: () => eintragZeigen(e.id) },
-    element("td", { text: e.titel }),
+  const zeilen = eintraege.map((e) => element("tr", { onclick: () => eintragZeigen(e.id), "data-id": e.id },
+    element("td", {}, neu.has(e.id) ? neuMarke(neu.get(e.id)) : null, document.createTextNode((neu.has(e.id) ? " " : "") + e.titel)),
     ...spalten.map((f) => element("td", { text: feldText(f, alleWerte(e)[f.schluessel]) })),
     element("td", { text: (e.abteilungen || []).join(", ") })));
   return element("div", { klasse: "tabelle-rahmen" },
@@ -175,6 +219,14 @@ async function eintragZeigen(id) {
   ]);
   if (!e.data) return meldung("#nachschlagen-meldung", "Eintrag nicht gefunden.");
   offenerEintrag = e.data;
+  if (neu.has(id)) {
+    neu.delete(id);
+    // Abwarten: sonst zeigt der Start beim schnellen Zurueck noch die alte Zahl.
+    const { error } = await eintragGesehen(id);
+    if (error) meldung("#nachschlagen-meldung", "„Gelesen“ ging nicht: " + error.message);
+    neuigkeitenZeichnen();
+    for (const m of document.querySelectorAll(`#ergebnisse [data-id="${id}"] .marke-neu, #ergebnisse [data-id="${id}"] .marke-geaendert`)) m.remove();
+  }
 
   $("#eintrag-sammlung").textContent = aktuell?.name || "";
   $("#eintrag-titel").textContent = e.data.titel;
@@ -246,6 +298,8 @@ function formularZeigen(eintrag) {
   $("#formular-ueberschrift").textContent = eintrag ? "Eintrag bearbeiten" : `Neuer Eintrag in „${aktuell.name}"`;
   $("#f-titel").value = eintrag?.titel || "";
   $("#f-stichwoerter").value = (eintrag?.stichwoerter || []).join(", ");
+  // Neuer Eintrag: alle informieren vorbelegt. Aenderung: nur, wenn angehakt.
+  $("#f-informieren").checked = !eintrag;
   $("#formular-felder").replaceChildren(...bearbeitbareFelder().map((f) => formularFeld(f, eintrag ? alleWerte(eintrag)[f.schluessel] : undefined)));
 
   // Zuordnung: Redakteure alle Abteilungen (leer = gilt fuer alle Leser),
@@ -342,8 +396,14 @@ async function speichern() {
     geschuetzt.set(r.data.id, neu);
   }
   knopfBeschaeftigt(knopf, false);
+  const informieren = $("#f-informieren").checked;
   await eintragZeigen(r.data.id);
   listeLaden();
+  if (!informieren) return;
+  const m = await wikiMelden(r.data.id);
+  meldung("#eintrag-meldung", m.status !== 200 ? "📣 Push ging nicht: " + (m.daten.fehler || "Fehler")
+    : m.daten.hinweis ? "📣 " + m.daten.hinweis
+    : `📣 Push an ${m.daten.gesendet} Gerät${m.daten.gesendet === 1 ? "" : "e"} gesendet.`, m.status === 200 ? "hinweis" : "fehler");
 }
 
 // Geschuetzte Felder nur, wenn ich sie sehen darf - sonst wuerde ich blind ueberschreiben.
