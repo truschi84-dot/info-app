@@ -3,7 +3,7 @@
 // nie als HTML (Plan Abschnitt 5, Falle 8).
 // Alle eigenen Module tragen dieselbe ?v=-Nummer wie in index.html. Ein Modul
 // muss ueberall mit derselben Adresse eingebunden werden, sonst laeuft es doppelt.
-import { SUPABASE, UMGEBUNG } from "./konfig.js?v=12";
+import { SUPABASE, UMGEBUNG } from "./konfig.js?v=14";
 
 export const db = window.supabase.createClient(SUPABASE.url, SUPABASE.key, {
   auth: { storageKey: `info-app-sitzung-${UMGEBUNG}`, persistSession: true, autoRefreshToken: true },
@@ -60,8 +60,17 @@ export function geraeteName() {
 export const $ = (sel, wurzel = document) => wurzel.querySelector(sel);
 
 export function zeige(name) {
+  document.body.classList.remove("zweispaltig");
   for (const b of document.querySelectorAll("[data-bildschirm]")) b.hidden = b.dataset.bildschirm !== name;
   window.scrollTo(0, 0);
+}
+
+// Am PC zwei Bildschirme nebeneinander (z. B. Liste links, Eintrag rechts).
+export function zeigeZwei(links, rechts) {
+  document.body.classList.add("zweispaltig");
+  for (const b of document.querySelectorAll("[data-bildschirm]")) {
+    b.hidden = b.dataset.bildschirm !== links && b.dataset.bildschirm !== rechts;
+  }
 }
 
 export function meldung(ziel, text, art = "fehler") {

@@ -12,7 +12,7 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="icon" href="icons/icon-192.png">
 <title>Info-App</title>
-<link rel="stylesheet" href="css/app.css?v=6">
+<link rel="stylesheet" href="css/app.css?v=7">
 </head>
 <body>
 
@@ -93,7 +93,7 @@
   </ul>
   <div class="knoepfe" id="admin-knoepfe" hidden>
     <button id="zur-verwaltung" class="haupt">👥 Personen</button>
-    <button id="zu-gruppen" class="haupt">🗂️ Gruppen &amp; Rechte</button>
+    <button id="zu-gruppen" class="haupt">🗂️ Gruppen &amp; Wikis</button>
   </div>
 </main>
 
@@ -227,6 +227,10 @@
   <form id="formular" novalidate>
     <label class="feld"><span>Titel *</span><input id="f-titel" maxlength="120" required></label>
     <div id="formular-felder"></div>
+    <div class="feld" id="f-abteilungen-feld" hidden>
+      <span id="f-abteilungen-hinweis">Gilt für</span>
+      <div id="f-abteilungen" class="haken-liste"></div>
+    </div>
     <label class="feld"><span>Stichwörter (mit Komma getrennt, helfen beim Suchen)</span><input id="f-stichwoerter"></label>
     <div class="knoepfe">
       <button id="formular-speichern" class="haupt" type="submit">Speichern</button>
@@ -239,7 +243,7 @@
 <!-- Admin: Gruppen und Rechte -->
 <main class="karte breit" data-bildschirm="gruppen" hidden>
   <div class="kopf">
-    <h1>Gruppen &amp; Rechte</h1>
+    <h1>Gruppen &amp; Wikis</h1>
     <button id="gruppen-zurueck" class="neben klein-knopf">Zurück</button>
   </div>
   <form id="gruppe-anlegen" class="anlegen" novalidate>
@@ -257,7 +261,19 @@
   <p id="gruppen-meldung" class="meldung" hidden></p>
   <h2>Gruppen und Mitglieder</h2>
   <div id="gruppen-liste" class="personen"></div>
-  <h2>Nachschlagen: wer darf was</h2>
+  <h2>Wikis und Tabellen</h2>
+  <form id="sammlung-anlegen" class="anlegen" novalidate>
+    <h2>Neues Wiki / neue Tabelle</h2>
+    <div class="zeile">
+      <label class="feld"><span>Name</span><input id="sammlung-name" maxlength="60" placeholder="z. B. Versand-Wiki"></label>
+      <label class="feld"><span>Art</span>
+        <select id="sammlung-art"><option value="wiki">Wiki (Artikel)</option><option value="tabelle">Tabelle (Raster)</option></select>
+      </label>
+      <label class="feld"><span>Beschreibung</span><input id="sammlung-beschreibung-neu" maxlength="300"></label>
+    </div>
+    <button id="sammlung-anlegen-los" class="haupt" type="submit">Anlegen</button>
+    <p id="sammlung-anlegen-meldung" class="meldung" hidden></p>
+  </form>
   <div id="rechte-liste" class="personen"></div>
 </main>
 
@@ -311,6 +327,6 @@
 
 <script src="lib/supabase.min.js?v=2.45.4"></script>
 <script src="lib/qrcode.js?v=2.0.4"></script>
-<script type="module" src="js/app.js?v=12"></script>
+<script type="module" src="js/app.js?v=14"></script>
 </body>
 </html>

@@ -1,7 +1,7 @@
 // Admin-Seite "Personen": anlegen, einladen (QR + Druck), Geraete sperren,
 // PIN-Sperre aufheben, deaktivieren / aktivieren. Lesen geht direkt ueber die
 // Datenbank (Zugriffsregeln), Aendern ueber die Cloud-Funktion admin-personen.
-import { $, datumZeit, db, element, funktion, geraetLesen, haken, knopfBeschaeftigt, meldung, zeige } from "./gemeinsam.js?v=12";
+import { $, datumZeit, db, element, funktion, geraetLesen, haken, knopfBeschaeftigt, meldung, zeige } from "./gemeinsam.js?v=14";
 
 const PIN_SPERRE_AB = 5;
 let ich = null;

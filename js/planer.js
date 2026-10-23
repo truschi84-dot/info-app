@@ -2,7 +2,7 @@
 // eigener Urlaub (Antrag), fuer Admins die offenen Antraege.
 // Geschrieben wird ueber die Datenbank-Funktionen abwesenheit_* und direkt
 // in "termine" - die Zugriffsregeln entscheiden, wer was darf.
-import { $, db, element, knopfBeschaeftigt, meldung, zeige } from "./gemeinsam.js?v=12";
+import { $, db, element, knopfBeschaeftigt, meldung, zeige } from "./gemeinsam.js?v=14";
 
 const ARTEN = { urlaub: "Urlaub", schule: "Schule / Fortbildung", sonstiges: "Sonstiges" };
 const STATUS = { beantragt: "beantragt", genehmigt: "genehmigt", abgelehnt: "abgelehnt", zurueckgezogen: "zurückgezogen" };
@@ -142,9 +142,24 @@ function monatZeichnen() {
     element("span", { klasse: "kal-marken" },
       tt.length ? element("span", { klasse: "marke-termin", text: `${tt.length}` }) : null,
       genehmigt ? element("span", { klasse: "marke-weg", text: `🌴${genehmigt}` }) : null,
-      offen ? element("span", { klasse: "marke-weg", title: "beantragt", text: `⏳${offen}` }) : null)));
+      offen ? element("span", { klasse: "marke-weg", title: "beantragt", text: `⏳${offen}` }) : null),
+    kalTexte(tt, weg)));
   }
   $("#kalender").replaceChildren(...zellen);
+}
+
+// Am PC (CSS) statt Zahlen: Termine und Namen direkt im Tag, hoechstens 4 Zeilen.
+const KAL_ZEILEN = 4;
+function kalTexte(tt, weg) {
+  const zeilen = [
+    ...tt.filter((t) => !t.abgesagt_am).map((t) => ({ k: "t", text: (t.ganztags ? "" : uhrzeit(t.beginn) + " ") + t.titel })),
+    ...weg.map((a) => ({ k: "w", text: `${a.status === "beantragt" ? "⏳" : "🌴"} ${namen.get(a.profil_id) || "?"}` })),
+  ];
+  const sichtbar = zeilen.slice(0, zeilen.length > KAL_ZEILEN ? KAL_ZEILEN - 1 : KAL_ZEILEN);
+  const rest = zeilen.length - sichtbar.length;
+  return element("span", { klasse: "kal-texte" },
+    ...sichtbar.map((z) => element("span", { klasse: z.k, text: z.text })),
+    rest ? element("span", { klasse: "mehr", text: `+${rest} mehr` }) : null);
 }
 
 function tagZeigen(iso) {

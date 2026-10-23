@@ -1,16 +1,22 @@
 // Nachschlagen: Sammlungen (Wiki/Tabelle) durchsuchen, Eintrag ansehen,
-// fuer Redakteure anlegen, aendern, archivieren. Welche Felder es gibt,
-// steht in sammlung_felder - nichts davon ist hier fest eingebaut.
-import { $, datumZeit, db, element, knopfBeschaeftigt, meldung, zeige } from "./gemeinsam.js?v=12";
+// anlegen, aendern, archivieren. Welche Felder es gibt, steht in
+// sammlung_felder - nichts davon ist hier fest eingebaut.
+// Schreiben duerfen Redakteure (ueberall) und - wenn im Wiki eingeschaltet -
+// Abteilungsleiter fuer Eintraege, die nur ihren Abteilungen zugeordnet sind.
+// Am PC stehen Liste und Eintrag nebeneinander.
+import { $, datumZeit, db, element, knopfBeschaeftigt, meldung, zeige, zeigeZwei } from "./gemeinsam.js?v=14";
 
 const SUCH_PAUSE_MS = 250;
+const breit = window.matchMedia("(min-width: 1024px)");
 
 let ich = null;
 let sammlungen = [];
-let aktuell = null;          // gewaehlte Sammlung
-let felder = [];             // Felder der gewaehlten Sammlung
-let darfSchreiben = new Set(); // Sammlungs-IDs, in denen ich Redakteur bin
-let namen = new Map();       // Profil-ID -> Name (fuer "geaendert von")
+let aktuell = null;            // gewaehlte Sammlung
+let felder = [];               // Felder der gewaehlten Sammlung
+let redakteurIn = new Set();   // Sammlungs-IDs, in denen ich Redakteur bin
+let leitung = [];              // Abteilungen, die ich leite
+let alleAbteilungen = [];
+let namen = new Map();         // Profil-ID -> Name (fuer "geaendert von")
 let offenerEintrag = null;
 let suchUhr = null;
 let suchNr = 0;
@@ -31,15 +37,18 @@ export async function zeigeNachschlagen(angemeldet) {
   ich = angemeldet;
   zeige("nachschlagen");
   meldung("#nachschlagen-meldung", "");
-  const [s, w, p] = await Promise.all([
-    db.from("sammlungen").select("id, name, art, beschreibung").eq("archiviert", false).order("name"),
+  const [s, w, p, l] = await Promise.all([
+    db.from("sammlungen").select("id, name, art, beschreibung, leiter_schreiben").eq("archiviert", false).order("name"),
     db.from("sammlung_schreiben").select("sammlung_id").eq("nutzer_id", ich.id),
-    db.from("profile").select("id, name"),
+    db.from("profile").select("id, name, abteilung"),
+    db.from("abteilungsleiter").select("abteilung").eq("profil_id", ich.id),
   ]);
   if (s.error) return meldung("#nachschlagen-meldung", "Konnte nicht laden: " + s.error.message);
   sammlungen = s.data;
-  darfSchreiben = new Set((w.data || []).map((x) => x.sammlung_id));
+  redakteurIn = new Set((w.data || []).map((x) => x.sammlung_id));
   namen = new Map((p.data || []).map((x) => [x.id, x.name]));
+  leitung = (l.data || []).map((x) => x.abteilung).sort();
+  alleAbteilungen = [...new Set([...(p.data || []).map((x) => x.abteilung), ...leitung].filter(Boolean))].sort();
 
   if (!sammlungen.length) {
     $("#sammlung-wahl").replaceChildren();
@@ -50,13 +59,19 @@ export async function zeigeNachschlagen(angemeldet) {
   await sammlungWaehlen(sammlungen.find((x) => x.id === aktuell?.id) || sammlungen[0]);
 }
 
+// Darf ich in dieser Sammlung ueberhaupt etwas anlegen? Und diesen Eintrag aendern?
+const redakteur = (s) => redakteurIn.has(s.id);
+const leiterDarfHier = (s) => s.leiter_schreiben && leitung.length > 0;
+const darfAendern = (e) => redakteur(aktuell)
+  || (leiterDarfHier(aktuell) && e.abteilungen?.length > 0 && e.abteilungen.every((a) => leitung.includes(a)));
+
 async function sammlungWaehlen(sammlung) {
   aktuell = sammlung;
   $("#sammlung-wahl").replaceChildren(...(sammlungen.length > 1 ? sammlungen.map((x) =>
     element("button", { klasse: "chip" + (x.id === sammlung.id ? " an" : ""), text: x.name, onclick: () => sammlungWaehlen(x) })) : []));
   $("#sammlung-titel").textContent = sammlung.name;
   $("#sammlung-beschreibung").textContent = sammlung.beschreibung || "";
-  $("#eintrag-neu").hidden = !darfSchreiben.has(sammlung.id);
+  $("#eintrag-neu").hidden = !(redakteur(sammlung) || leiterDarfHier(sammlung));
   const { data } = await db.from("sammlung_felder").select("*").eq("sammlung_id", sammlung.id).order("reihenfolge");
   felder = data || [];
   await listeLaden();
@@ -74,7 +89,7 @@ async function listeLaden() {
   const suche = $("#suche").value.trim();
   const r = suche
     ? await db.rpc("nachschlagen", { suche, sammlung: aktuell.id })
-    : await db.from("eintraege").select("id, titel, werte, stichwoerter, archiviert").eq("sammlung_id", aktuell.id).order("titel");
+    : await db.from("eintraege").select("id, titel, werte, stichwoerter, abteilungen, archiviert").eq("sammlung_id", aktuell.id).order("titel");
   if (nr !== suchNr) return; // eine neuere Suche ist schon unterwegs
   if (r.error) return meldung("#nachschlagen-meldung", "Suche ging nicht: " + r.error.message);
   meldung("#nachschlagen-meldung", "");
@@ -99,10 +114,11 @@ function listenZeile(e, listenFelder) {
   const zusatz = listenFelder.map((f) => feldText(f, e.werte?.[f.schluessel])).filter(Boolean).join(" · ");
   const punkte = felder.filter((f) => f.typ === "stichpunkte")
     .reduce((n, f) => n + [].concat(e.werte?.[f.schluessel] || []).length, 0);
-  return element("li", {},
+  return element("li", { "data-id": e.id, klasse: offenerEintrag?.id === e.id ? "offen" : "" },
     element("button", { klasse: "eintrag-knopf", onclick: () => eintragZeigen(e.id) },
       element("strong", { text: e.titel }),
       zusatz ? element("span", { klasse: "leise", text: zusatz }) : null,
+      ...(e.abteilungen || []).map((a) => element("span", { klasse: "chip klein", text: a })),
       e.archiviert ? element("span", { klasse: "marke", text: "archiviert" }) : null,
       punkte ? element("span", { klasse: "zahl", text: `${punkte} Punkt${punkte === 1 ? "" : "e"}` }) : null,
     ));
@@ -110,27 +126,40 @@ function listenZeile(e, listenFelder) {
 
 function tabelle(eintraege, listenFelder) {
   const spalten = listenFelder.length ? listenFelder : felder;
+  const kopf = element("tr", {},
+    element("th", { text: "Titel" }),
+    ...spalten.map((f) => element("th", { text: f.bezeichnung })),
+    element("th", { text: "Abteilung" }));
+  const zeilen = eintraege.map((e) => element("tr", { onclick: () => eintragZeigen(e.id) },
+    element("td", { text: e.titel }),
+    ...spalten.map((f) => element("td", { text: feldText(f, e.werte?.[f.schluessel]) })),
+    element("td", { text: (e.abteilungen || []).join(", ") })));
   return element("div", { klasse: "tabelle-rahmen" },
-    element("table", { klasse: "tabelle" },
-      element("thead", {}, element("tr", {}, element("th", { text: "Titel" }), ...spalten.map((f) => element("th", { text: f.bezeichnung })))),
-      element("tbody", {}, ...eintraege.map((e) => element("tr", { onclick: () => eintragZeigen(e.id) },
-        element("td", { text: e.titel }), ...spalten.map((f) => element("td", { text: feldText(f, e.werte?.[f.schluessel]) }))))),
-    ));
+    element("table", { klasse: "tabelle" }, element("thead", {}, kopf), element("tbody", {}, ...zeilen)));
+}
+
+// Am PC: Liste links, Eintrag/Formular rechts. Am Handy: nacheinander.
+function rechtsZeigen(name) {
+  if (breit.matches) zeigeZwei("nachschlagen", name);
+  else zeige(name);
+  for (const li of document.querySelectorAll(".eintragsliste li")) li.classList.toggle("offen", li.dataset.id === offenerEintrag?.id);
 }
 
 // ── Ein Eintrag ─────────────────────────────────────────────────────────
 async function eintragZeigen(id) {
   const [e, v] = await Promise.all([
     db.from("eintraege").select("*").eq("id", id).maybeSingle(),
-    db.from("eintraege_verlauf").select("fassung_nr, titel, werte, geaendert_von, geaendert_am").eq("eintrag_id", id).order("fassung_nr", { ascending: false }),
+    db.from("eintraege_verlauf").select("fassung_nr, titel, werte, abteilungen, geaendert_von, geaendert_am").eq("eintrag_id", id).order("fassung_nr", { ascending: false }),
   ]);
   if (!e.data) return meldung("#nachschlagen-meldung", "Eintrag nicht gefunden.");
   offenerEintrag = e.data;
-  const redakteur = darfSchreiben.has(e.data.sammlung_id);
 
   $("#eintrag-sammlung").textContent = aktuell?.name || "";
   $("#eintrag-titel").textContent = e.data.titel;
-  $("#eintrag-inhalt").replaceChildren(...felder.map((f) => feldAnzeige(f, e.data.werte?.[f.schluessel])).filter(Boolean));
+  $("#eintrag-inhalt").replaceChildren(
+    ...(e.data.abteilungen?.length ? [element("p", { klasse: "gilt-fuer" }, element("span", { klasse: "klein", text: "Gilt für: " }),
+      ...e.data.abteilungen.map((a) => element("span", { klasse: "chip klein", text: a })))] : []),
+    ...felder.map((f) => feldAnzeige(f, e.data.werte?.[f.schluessel])).filter(Boolean));
   $("#eintrag-stichwoerter").replaceChildren(...(e.data.stichwoerter || []).map((s) => element("span", { klasse: "chip klein", text: s })));
   $("#eintrag-meta").textContent = `Zuletzt geändert ${datumZeit(e.data.geaendert_am)}`
     + (namen.get(e.data.geaendert_von) ? ` von ${namen.get(e.data.geaendert_von)}` : "")
@@ -138,7 +167,7 @@ async function eintragZeigen(id) {
 
   const knoepfe = $("#eintrag-knoepfe");
   knoepfe.replaceChildren();
-  if (redakteur) {
+  if (darfAendern(e.data)) {
     knoepfe.append(
       element("button", { klasse: "haupt", text: "✏️ Bearbeiten", onclick: () => formularZeigen(e.data) }),
       element("button", { klasse: e.data.archiviert ? "neben" : "gefahr", text: e.data.archiviert ? "Wiederherstellen" : "Archivieren",
@@ -150,12 +179,13 @@ async function eintragZeigen(id) {
   $("#eintrag-verlauf").hidden = !fassungen.length;
   $("#verlauf-zahl").textContent = `Ältere Fassungen (${fassungen.length})`;
   $("#verlauf-liste").replaceChildren(...fassungen.map((f) => element("li", {},
-    element("span", { klasse: "leise", text: `Fassung ${f.fassung_nr} · ${datumZeit(f.geaendert_am)}${namen.get(f.geaendert_von) ? " · " + namen.get(f.geaendert_von) : ""}` }),
+    element("span", { klasse: "leise", text: `Fassung ${f.fassung_nr} · ${datumZeit(f.geaendert_am)}${namen.get(f.geaendert_von) ? " · " + namen.get(f.geaendert_von) : ""}`
+      + (f.abteilungen?.length ? ` · gilt für ${f.abteilungen.join(", ")}` : "") }),
     element("strong", { text: f.titel }),
     ...felder.map((feld) => feldAnzeige(feld, f.werte?.[feld.schluessel])).filter(Boolean),
   )));
   meldung("#eintrag-meldung", "");
-  zeige("eintrag");
+  rechtsZeigen("eintrag");
 }
 
 function feldAnzeige(feld, wert) {
@@ -176,7 +206,8 @@ async function archivieren(eintrag, knopf) {
   const { error } = await db.from("eintraege").update({ archiviert: !eintrag.archiviert }).eq("id", eintrag.id);
   knopfBeschaeftigt(knopf, false);
   if (error) return meldung("#eintrag-meldung", "Ging nicht: " + error.message);
-  eintragZeigen(eintrag.id);
+  await eintragZeigen(eintrag.id);
+  listeLaden();
 }
 
 // ── Formular: Felder kommen aus sammlung_felder ─────────────────────────
@@ -186,8 +217,23 @@ function formularZeigen(eintrag) {
   $("#f-titel").value = eintrag?.titel || "";
   $("#f-stichwoerter").value = (eintrag?.stichwoerter || []).join(", ");
   $("#formular-felder").replaceChildren(...felder.map((f) => formularFeld(f, eintrag?.werte?.[f.schluessel])));
+
+  // Zuordnung: Redakteure alle Abteilungen (leer = gilt fuer alle Leser),
+  // Abteilungsleiter nur ihre eigenen und mindestens eine.
+  const auswahl = redakteur(aktuell) ? alleAbteilungen : leitung;
+  const gesetzt = new Set(eintrag?.abteilungen || (redakteur(aktuell) ? [] : leitung.slice(0, 1)));
+  $("#f-abteilungen").replaceChildren(...auswahl.map((a) => {
+    const box = element("input", { type: "checkbox", value: a });
+    box.checked = gesetzt.has(a);
+    return element("label", { klasse: "haken" }, box, element("span", { text: a }));
+  }));
+  $("#f-abteilungen-hinweis").textContent = redakteur(aktuell)
+    ? "Gilt für (ohne Haken: für alle, die dieses Wiki lesen)"
+    : "Gilt für (mindestens eine deiner Abteilungen)";
+  $("#f-abteilungen-feld").hidden = !auswahl.length;
+
   meldung("#formular-meldung", "");
-  zeige("eintrag-formular");
+  rechtsZeigen("eintrag-formular");
   $("#f-titel").focus();
 }
 
@@ -199,7 +245,7 @@ function formularFeld(f, wert) {
     eingabe = element("textarea", { id, rows: String(Math.min(20, Math.max(6, punkte.length + 2))), placeholder: "Ein Punkt pro Zeile" });
     eingabe.value = punkte.join("\n");
   } else if (f.typ === "langtext") {
-    eingabe = element("textarea", { id, rows: "5" });
+    eingabe = element("textarea", { id, rows: "8" });
     eingabe.value = wert || "";
   } else if (f.typ === "auswahl") {
     eingabe = element("select", { id }, element("option", { value: "", text: "–" }),
@@ -231,13 +277,16 @@ async function speichern() {
     werte[f.schluessel] = wert;
   }
   const stichwoerter = $("#f-stichwoerter").value.split(",").map((s) => s.trim()).filter(Boolean);
+  const abteilungen = [...document.querySelectorAll("#f-abteilungen input:checked")].map((b) => b.value);
+  if (!redakteur(aktuell) && !abteilungen.length) return meldung("#formular-meldung", "Bitte mindestens eine Abteilung anhaken.");
 
   const knopf = $("#formular-speichern");
   knopfBeschaeftigt(knopf, true);
   const r = offenerEintrag
-    ? await db.from("eintraege").update({ titel, werte, stichwoerter }).eq("id", offenerEintrag.id).select("id").single()
-    : await db.from("eintraege").insert({ sammlung_id: aktuell.id, titel, werte, stichwoerter }).select("id").single();
+    ? await db.from("eintraege").update({ titel, werte, stichwoerter, abteilungen }).eq("id", offenerEintrag.id).select("id").single()
+    : await db.from("eintraege").insert({ sammlung_id: aktuell.id, titel, werte, stichwoerter, abteilungen }).select("id").single();
   knopfBeschaeftigt(knopf, false);
   if (r.error) return meldung("#formular-meldung", "Speichern ging nicht: " + r.error.message);
-  eintragZeigen(r.data.id);
+  await eintragZeigen(r.data.id);
+  listeLaden();
 }
