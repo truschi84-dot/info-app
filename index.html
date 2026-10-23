@@ -12,7 +12,7 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="icon" href="icons/icon-192.png">
 <title>Info-App</title>
-<link rel="stylesheet" href="css/app.css?v=10">
+<link rel="stylesheet" href="css/app.css?v=12">
 </head>
 <body>
 
@@ -297,9 +297,10 @@
     <h2>Neue Person</h2>
     <div class="zeile">
       <label class="feld"><span>Name</span><input id="anlegen-name" maxlength="80" required></label>
-      <label class="feld"><span>Abteilung</span><input id="anlegen-abteilung" maxlength="60"></label>
+      <label class="feld"><span>Abteilung</span><input id="anlegen-abteilung" maxlength="60" list="abteilungen-liste"></label>
+      <label class="feld"><span>Funktion (freiwillig)</span><input id="anlegen-funktion" maxlength="60" list="funktionen-liste" placeholder="z. B. Chef"></label>
       <label class="feld"><span>Rolle</span>
-        <select id="anlegen-rolle"><option value="mitarbeiter">Mitarbeiter</option><option value="admin">Admin</option></select>
+        <select id="anlegen-rolle"><option value="mitarbeiter">Mitarbeiter</option><option value="admin">Admin – darf alles</option></select>
       </label>
     </div>
     <label class="haken"><input type="checkbox" id="anlegen-app" checked><span>Nutzt die App selbst (Einladung mit QR-Code)</span></label>
@@ -323,6 +324,7 @@
   </section>
 
   <datalist id="abteilungen-liste"></datalist>
+  <datalist id="funktionen-liste"></datalist>
   <h2>Alle Personen</h2>
   <p id="admin-meldung" class="meldung" hidden></p>
   <div id="personen" class="personen"></div>
@@ -352,6 +354,6 @@
 
 <script src="lib/supabase.min.js?v=2.45.4"></script>
 <script src="lib/qrcode.js?v=2.0.4"></script>
-<script type="module" src="js/app.js?v=17"></script>
+<script type="module" src="js/app.js?v=18"></script>
 </body>
 </html>

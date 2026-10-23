@@ -3,13 +3,13 @@
 //   gueltige Sitzung          -> Start
 //   Geraet eingerichtet       -> PIN
 //   sonst                     -> Einladung
-import { $, db, farbenLaden, geraetLesen, zeige } from "./gemeinsam.js?v=17";
-import { UMGEBUNG } from "./konfig.js?v=17";
-import { anmeldungEinrichten, codeAus, zeigeEinladung, zeigePin } from "./anmelden.js?v=17";
-import { adminEinrichten, zeigeAdmin } from "./admin.js?v=17";
-import { nachschlagenEinrichten, zeigeNachschlagen } from "./nachschlagen.js?v=17";
-import { gruppenEinrichten, zeigeGruppen } from "./gruppen.js?v=17";
-import { planerEinrichten, zeigePlaner } from "./planer.js?v=17";
+import { $, db, farbenLaden, geraetLesen, zeige } from "./gemeinsam.js?v=18";
+import { UMGEBUNG } from "./konfig.js?v=18";
+import { anmeldungEinrichten, codeAus, zeigeEinladung, zeigePin } from "./anmelden.js?v=18";
+import { adminEinrichten, zeigeAdmin } from "./admin.js?v=18";
+import { nachschlagenEinrichten, zeigeNachschlagen } from "./nachschlagen.js?v=18";
+import { gruppenEinrichten, zeigeGruppen } from "./gruppen.js?v=18";
+import { planerEinrichten, zeigePlaner } from "./planer.js?v=18";
 
 let ich = null;
 

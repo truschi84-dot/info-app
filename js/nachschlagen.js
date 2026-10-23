@@ -4,7 +4,7 @@
 // Schreiben duerfen Redakteure (ueberall) und - wenn im Wiki eingeschaltet -
 // Abteilungsleiter fuer Eintraege, die nur ihren Abteilungen zugeordnet sind.
 // Am PC stehen Liste und Eintrag nebeneinander.
-import { $, abteilungsChip, datumZeit, db, element, knopfBeschaeftigt, meldung, zeige, zeigeZwei } from "./gemeinsam.js?v=17";
+import { $, abteilungsChip, datumZeit, db, element, knopfBeschaeftigt, meldung, zeige, zeigeZwei } from "./gemeinsam.js?v=18";
 
 const SUCH_PAUSE_MS = 250;
 const breit = window.matchMedia("(min-width: 1024px)");
@@ -70,7 +70,8 @@ export async function zeigeNachschlagen(angemeldet) {
 }
 
 // Darf ich in dieser Sammlung ueberhaupt etwas anlegen? Und diesen Eintrag aendern?
-const redakteur = (s) => redakteurIn.has(s.id);
+// Admin ist in jedem Wiki Redakteur (wie in intern.darf_schreiben_s).
+const redakteur = (s) => ich.rolle === "admin" || redakteurIn.has(s.id);
 const leiterDarfHier = (s) => s.leiter_schreiben && leitung.length > 0;
 const darfAendern = (e) => redakteur(aktuell)
   || (leiterDarfHier(aktuell) && e.abteilungen?.length > 0 && e.abteilungen.every((a) => leitung.includes(a)));

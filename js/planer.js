@@ -5,7 +5,7 @@
 // in "termine" - die Zugriffsregeln entscheiden, wer was darf.
 import {
   $, abteilungsChip, db, eingefaerbt, element, farbenLaden, hoechstzahl, knopfBeschaeftigt, meldung, zeige,
-} from "./gemeinsam.js?v=17";
+} from "./gemeinsam.js?v=18";
 
 const ARTEN = { urlaub: "Urlaub", schule: "Schule / Fortbildung", sonstiges: "Sonstiges" };
 const STATUS = { beantragt: "beantragt", genehmigt: "genehmigt", abgelehnt: "abgelehnt", zurueckgezogen: "zurückgezogen" };
@@ -92,14 +92,14 @@ export async function zeigePlaner(angemeldet) {
   $("#u-fuer").replaceChildren(element("option", { value: "", text: "mich" }),
     ...team.map((x) => element("option", { value: x.id, text: x.name + (x.abteilung ? ` (${x.abteilung})` : "") })));
   $("#u-fuer-feld").hidden = !team.length;
-  $("#u-fuer-hinweis").textContent = ich.darf_freigeben ? "Für (du bist Freigeber – dann gleich genehmigt)" : "Für (wartet dann auf die Freigabe)";
+  $("#u-fuer-hinweis").textContent = freigeber() ? "Für (du bist Freigeber – dann gleich genehmigt)" : "Für (wartet dann auf die Freigabe)";
   ansichtWaehlen(ansicht);
 }
 
 function ansichtWaehlen(name) {
   const reiter = [["kalender", "📅 Kalender"], ["urlaub", "🌴 Mein Urlaub"]];
   if (istLeiter || alleAbteilungen()) reiter.push(["abteilung", "👥 Übersicht"]);
-  if (ich.darf_freigeben) reiter.push(["antraege", "✅ Anträge"]);
+  if (freigeber()) reiter.push(["antraege", "✅ Anträge"]);
   if (!reiter.some(([k]) => k === name)) name = "kalender";
   ansicht = name;
   $("#planer-reiter").replaceChildren(...reiter.map(([k, t]) =>
@@ -314,7 +314,7 @@ async function urlaubBeantragen() {
   const fuerJemand = $("#u-fuer").value;
   meldung("#urlaub-meldung",
     !fuerJemand ? "Beantragt. Du siehst hier, sobald entschieden ist."
-      : ich.darf_freigeben ? "Eingetragen und genehmigt."
+      : freigeber() ? "Eingetragen und genehmigt."
       : "Eingetragen. Es wartet jetzt auf die Freigabe.", "hinweis");
   $("#u-bemerkung").value = "";
   urlaubLaden();
@@ -345,7 +345,9 @@ function engpass(x, genehmigt) {
   return `⚠ ${abt}: erlaubt sind höchstens ${max} gleichzeitig – am ${tage} wären es mehr.`;
 }
 
-const alleAbteilungen = () => ich.rolle === "admin" || ich.darf_freigeben;
+// Admin ist immer auch Freigeber (wie in intern.ist_freigeber).
+const freigeber = () => ich.rolle === "admin" || ich.darf_freigeben;
+const alleAbteilungen = freigeber;
 
 // ── Uebersicht: wer ist wann weg, je Abteilung, ein Monat ───────────────
 async function belegungZeichnen() {

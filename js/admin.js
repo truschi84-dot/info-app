@@ -5,13 +5,14 @@
 import {
   $, FARBEN, abteilungsChip, abteilungsFarbe, datumZeit, db, element, farbenLaden, funktion, geraetLesen, haken,
   knopfBeschaeftigt, meldung, zeige,
-} from "./gemeinsam.js?v=17";
+} from "./gemeinsam.js?v=18";
 
 const PIN_SPERRE_AB = 5;
 let ich = null;
 let abteilungen = [];   // alle vorkommenden Abteilungen (aus den Personen)
 let leitung = [];       // { profil_id, abteilung }
 let personen = [];      // fuer die Doppelt-Pruefung beim Anlegen
+const FUNKTIONEN = ["Chef", "Betriebsleitung (Stellvertretung)", "Abteilungsleitung", "Büro"];
 
 export function adminEinrichten(zurueck) {
   $("#admin-zurueck").addEventListener("click", zurueck);
@@ -34,7 +35,7 @@ async function personenLaden() {
   const liste = $("#personen");
   meldung("#admin-meldung", "");
   const [p, g, l, e] = await Promise.all([
-    db.from("profile").select("id, name, abteilung, rolle, aktiv, darf_freigeben").order("name"),
+    db.from("profile").select("id, name, abteilung, rolle, aktiv, darf_freigeben, funktion").order("name"),
     db.from("geraete").select("id, profil_id, bezeichnung, erstellt_am, gesperrt_am, fehlversuche").order("erstellt_am"),
     db.from("abteilungsleiter").select("profil_id, abteilung"),
     db.from("einladungen").select("profil_id, gueltig_bis").is("eingeloest_am", null).is("widerrufen_am", null)
@@ -49,6 +50,8 @@ async function personenLaden() {
   leitung = l.data;
   abteilungen = [...new Set([...p.data.map((x) => x.abteilung), ...leitung.map((x) => x.abteilung)].filter(Boolean))].sort();
   $("#abteilungen-liste").replaceChildren(...abteilungen.map((a) => element("option", { value: a })));
+  const funktionen = new Set([...FUNKTIONEN, ...p.data.map((x) => x.funktion).filter(Boolean)]);
+  $("#funktionen-liste").replaceChildren(...[...funktionen].map((f) => element("option", { value: f })));
   farbenZeichnen();
   liste.replaceChildren(...p.data.map((person) => personKarte(person,
     g.data.filter((x) => x.profil_id === person.id), e.data.find((x) => x.profil_id === person.id))));
@@ -122,6 +125,7 @@ function personKarte(person, geraete, offeneEinladung) {
   const karte = element("article", { klasse: "person" + (person.aktiv ? "" : " aus") },
     element("div", { klasse: "person-kopf" },
       element("strong", { text: person.name + (selbst ? " (du)" : "") }),
+      person.funktion ? element("span", { klasse: "funktion", text: person.funktion }) : null,
       person.abteilung ? abteilungsChip(person.abteilung) : null,
       ohneApp && person.aktiv ? element("span", { klasse: "ohne-app", text: "ohne App" }) : null,
       element("span", { klasse: "leise", text: [person.rolle === "admin" ? "Admin" : null, person.aktiv ? null : "deaktiviert"].filter(Boolean).join(" · ") }),
@@ -146,11 +150,36 @@ function rechteBereich(person) {
     if (error) return meldung("#admin-meldung", "Abteilung ging nicht: " + error.message);
     personenLaden();
   });
+  const funktion = element("input", { value: person.funktion || "", list: "funktionen-liste", maxlength: "60", placeholder: "z. B. Chef" });
+  funktion.addEventListener("change", async () => {
+    const { error } = await db.from("profile").update({ funktion: funktion.value.trim() || null }).eq("id", person.id);
+    if (error) return meldung("#admin-meldung", "Funktion ging nicht: " + error.message);
+    personenLaden();
+  });
+  // Die eigene Rolle nicht aendern - sonst sperrt man sich selbst aus.
+  const rolle = element("select", { "aria-label": `Rolle von ${person.name}` },
+    element("option", { value: "mitarbeiter", text: "Mitarbeiter" }),
+    element("option", { value: "admin", text: "Admin – darf alles" }));
+  rolle.value = person.rolle;
+  if (person.id === ich.id) rolle.disabled = true;
+  rolle.addEventListener("change", async () => {
+    if (!confirm(rolle.value === "admin"
+      ? `${person.name} zum Admin machen? Admin darf alles: Personen verwalten, Urlaub genehmigen, jedes Wiki bearbeiten.`
+      : `${person.name} ist dann kein Admin mehr.`)) { rolle.value = person.rolle; return; }
+    const { error } = await db.from("profile").update({ rolle: rolle.value }).eq("id", person.id);
+    if (error) { rolle.value = person.rolle; return meldung("#admin-meldung", "Rolle ging nicht: " + error.message); }
+    personenLaden();
+  });
   const leitet = new Set(leitung.filter((x) => x.profil_id === person.id).map((x) => x.abteilung));
   return element("div", { klasse: "rechte" },
-    element("label", { klasse: "feld klein-feld" }, element("span", { text: "Abteilung" }), abteilung),
-    haken("Freigeber – genehmigt Urlaub", person.darf_freigeben,
-      (an) => db.from("profile").update({ darf_freigeben: an }).eq("id", person.id), "#admin-meldung"),
+    element("div", { klasse: "zeile" },
+      element("label", { klasse: "feld klein-feld" }, element("span", { text: "Abteilung" }), abteilung),
+      element("label", { klasse: "feld klein-feld" }, element("span", { text: "Funktion" }), funktion),
+      element("label", { klasse: "feld klein-feld" }, element("span", { text: "Rolle" }), rolle)),
+    person.rolle === "admin"
+      ? element("p", { klasse: "klein", text: "✅ Genehmigt Urlaub und bearbeitet jedes Wiki (als Admin immer)" })
+      : haken("Freigeber – genehmigt Urlaub", person.darf_freigeben,
+        (an) => db.from("profile").update({ darf_freigeben: an }).eq("id", person.id), "#admin-meldung"),
     abteilungen.length ? element("div", { klasse: "haken-liste" },
       element("span", { klasse: "klein", text: "Leitet:" }),
       ...abteilungen.map((a) => haken(a, leitet.has(a),
@@ -194,7 +223,8 @@ async function personAnlegen() {
   if (doppelt(name) && !confirm(`„${name}" gibt es schon. Trotzdem noch einmal anlegen?`)) return;
   const mitApp = $("#anlegen-app").checked;
   const d = await aktion($("#anlegen-los"), {
-    aktion: "anlegen", name, abteilung: $("#anlegen-abteilung").value.trim(), rolle: $("#anlegen-rolle").value, ohne_app: !mitApp,
+    aktion: "anlegen", name, abteilung: $("#anlegen-abteilung").value.trim(), funktion: $("#anlegen-funktion").value.trim(),
+    rolle: $("#anlegen-rolle").value, ohne_app: !mitApp,
   }, "#anlegen-meldung");
   if (!d) return;
   $("#anlegen").reset();

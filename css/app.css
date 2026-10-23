@@ -216,7 +216,7 @@ button.laedt::after { content: " …"; }
 /* Personen: Rechte */
 .rechte { display: grid; gap: 6px; padding: 8px 0 10px; border-top: 1px dashed var(--rand); }
 .klein-feld { margin: 0; max-width: 280px; }
-.klein-feld input { font-size: 15px; padding: 8px 10px; }
+.klein-feld input, .klein-feld select { font-size: 15px; padding: 8px 10px; }
 
 /* Wiki: Zuordnung und Felder */
 .gilt-fuer { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0 0 14px; }
@@ -365,3 +365,4 @@ button.laedt::after { content: " …"; }
   .belegung .abt-zeile .name { flex-wrap: wrap; gap: 2px; padding: 3px 0; }
   .belegung .abt-zeile th, .belegung .abt-zeile td { height: auto; }
 }
+.funktion { font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--akzent-hell); color: var(--akzent); font-weight: 600; }
