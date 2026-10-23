@@ -12,7 +12,7 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="icon" href="icons/icon-192.png">
 <title>Info-App</title>
-<link rel="stylesheet" href="css/app.css?v=2">
+<link rel="stylesheet" href="css/app.css?v=3">
 </head>
 <body>
 
@@ -87,11 +87,96 @@
   </div>
   <ul class="teile">
     <li><span>💬</span> Chats<em>kommt bald</em></li>
-    <li><span>📖</span> Nachschlagen<em>kommt bald</em></li>
+    <li class="offen"><button id="zum-nachschlagen"><span>📖</span> Nachschlagen</button></li>
     <li><span>📅</span> Planer<em>kommt bald</em></li>
     <li><span>📝</span> Notizen<em>kommt bald</em></li>
   </ul>
-  <button id="zur-verwaltung" class="haupt" hidden>👥 Personen verwalten</button>
+  <div class="knoepfe" id="admin-knoepfe" hidden>
+    <button id="zur-verwaltung" class="haupt">👥 Personen</button>
+    <button id="zu-gruppen" class="haupt">🗂️ Gruppen &amp; Rechte</button>
+  </div>
+</main>
+
+<!-- Nachschlagen: Liste und Suche -->
+<main class="karte breit" data-bildschirm="nachschlagen" hidden>
+  <div class="kopf">
+    <div>
+      <h1 id="sammlung-titel">Nachschlagen</h1>
+      <p class="unter" id="sammlung-beschreibung"></p>
+    </div>
+    <button id="nachschlagen-zurueck" class="neben klein-knopf">Zurück</button>
+  </div>
+  <div id="sammlung-wahl" class="chips"></div>
+  <label class="feld suche">
+    <span class="unsichtbar">Suchen</span>
+    <input id="suche" type="search" placeholder="🔎 Suchen – Name, Nummer, Hinweis …" autocomplete="off">
+  </label>
+  <div class="zeile-kopf">
+    <p class="klein" id="treffer-zahl"></p>
+    <button id="eintrag-neu" class="neben klein-knopf" hidden>＋ Neuer Eintrag</button>
+  </div>
+  <p id="nachschlagen-meldung" class="meldung" hidden></p>
+  <div id="ergebnisse"></div>
+</main>
+
+<!-- Nachschlagen: ein Eintrag -->
+<main class="karte breit" data-bildschirm="eintrag" hidden>
+  <div class="kopf">
+    <div>
+      <p class="klein" id="eintrag-sammlung"></p>
+      <h1 id="eintrag-titel"></h1>
+    </div>
+    <button id="eintrag-zurueck" class="neben klein-knopf">Zurück</button>
+  </div>
+  <div id="eintrag-inhalt"></div>
+  <div id="eintrag-stichwoerter" class="chips"></div>
+  <p class="klein" id="eintrag-meta"></p>
+  <div class="knoepfe" id="eintrag-knoepfe"></div>
+  <p id="eintrag-meldung" class="meldung" hidden></p>
+  <details id="eintrag-verlauf" class="verlauf" hidden>
+    <summary id="verlauf-zahl">Ältere Fassungen</summary>
+    <ul id="verlauf-liste"></ul>
+  </details>
+</main>
+
+<!-- Nachschlagen: Formular fuer Redakteure -->
+<main class="karte breit" data-bildschirm="eintrag-formular" hidden>
+  <h1 id="formular-ueberschrift">Eintrag</h1>
+  <form id="formular" novalidate>
+    <label class="feld"><span>Titel *</span><input id="f-titel" maxlength="120" required></label>
+    <div id="formular-felder"></div>
+    <label class="feld"><span>Stichwörter (mit Komma getrennt, helfen beim Suchen)</span><input id="f-stichwoerter"></label>
+    <div class="knoepfe">
+      <button id="formular-speichern" class="haupt" type="submit">Speichern</button>
+      <button id="formular-abbrechen" class="neben" type="button">Abbrechen</button>
+    </div>
+    <p id="formular-meldung" class="meldung" hidden></p>
+  </form>
+</main>
+
+<!-- Admin: Gruppen und Rechte -->
+<main class="karte breit" data-bildschirm="gruppen" hidden>
+  <div class="kopf">
+    <h1>Gruppen &amp; Rechte</h1>
+    <button id="gruppen-zurueck" class="neben klein-knopf">Zurück</button>
+  </div>
+  <form id="gruppe-anlegen" class="anlegen" novalidate>
+    <h2>Neue Gruppe</h2>
+    <div class="zeile">
+      <label class="feld"><span>Name</span><input id="gruppe-name" maxlength="60" placeholder="z. B. Versand"></label>
+      <label class="feld"><span>Art</span>
+        <select id="gruppe-art"><option value="offen">Offen (alle schreiben)</option><option value="ankuendigung">Ankündigung (nur ausgewählte)</option></select>
+      </label>
+      <label class="haken gross"><input id="gruppe-alle" type="checkbox"><span>Alle sind automatisch drin</span></label>
+    </div>
+    <button id="gruppe-anlegen-los" class="haupt" type="submit">Gruppe anlegen</button>
+    <p id="gruppe-anlegen-meldung" class="meldung" hidden></p>
+  </form>
+  <p id="gruppen-meldung" class="meldung" hidden></p>
+  <h2>Gruppen und Mitglieder</h2>
+  <div id="gruppen-liste" class="personen"></div>
+  <h2>Nachschlagen: wer darf was</h2>
+  <div id="rechte-liste" class="personen"></div>
 </main>
 
 <!-- Admin: Personen -->
@@ -143,6 +228,6 @@
 
 <script src="lib/supabase.min.js?v=2.45.4"></script>
 <script src="lib/qrcode.js?v=2.0.4"></script>
-<script type="module" src="js/app.js?v=5"></script>
+<script type="module" src="js/app.js?v=8"></script>
 </body>
 </html>

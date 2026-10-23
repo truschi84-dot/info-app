@@ -123,6 +123,60 @@ button.laedt::after { content: " …"; }
 .teile em { display: block; font-style: normal; font-size: 12px; color: var(--leise); }
 #zur-verwaltung { width: 100%; }
 
+.teile li.offen { padding: 0; border-color: var(--akzent); }
+.teile li.offen button {
+  width: 100%; height: 100%; padding: 14px 8px; background: var(--akzent-hell); color: var(--text);
+  border-radius: 14px; font-weight: 600;
+}
+#admin-knoepfe { margin-top: 0; }
+
+/* Nachschlagen */
+.unsichtbar { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.suche input { font-size: 17px; }
+.feld textarea {
+  width: 100%; padding: 12px 14px; font: inherit; color: var(--text); background: var(--feld);
+  border: 1px solid var(--rand); border-radius: 12px; resize: vertical;
+}
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.chips:empty { display: none; }
+.chip { padding: 6px 14px; border-radius: 999px; border: 1px solid var(--rand); background: transparent; color: var(--text); font-weight: 600; }
+.chip.an { background: var(--akzent); color: var(--akzent-text); border-color: var(--akzent); }
+.chip.klein { padding: 3px 10px; font-size: 13px; font-weight: 500; background: var(--akzent-hell); border: 0; }
+.zeile-kopf { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 8px; }
+.zeile-kopf .klein { margin: 0; }
+.eintragsliste { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--rand); }
+.eintragsliste li { border-bottom: 1px solid var(--rand); }
+.eintrag-knopf {
+  width: 100%; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; text-align: left;
+  padding: 12px 6px; background: transparent; color: var(--text); border-radius: 0; font-weight: 400;
+}
+.eintrag-knopf:hover, .eintrag-knopf:focus-visible { background: var(--akzent-hell); }
+.eintrag-knopf strong { font-weight: 600; }
+.marke { font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--rot-hell); color: var(--rot); }
+.zahl { margin-left: auto; font-size: 12px; color: var(--akzent); font-weight: 600; }
+.tabelle-rahmen { overflow-x: auto; }
+.tabelle { width: 100%; border-collapse: collapse; font-size: 15px; }
+.tabelle th, .tabelle td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--rand); }
+.tabelle tbody tr { cursor: pointer; }
+.tabelle tbody tr:hover { background: var(--akzent-hell); }
+.feld-anzeige { margin: 0 0 16px; }
+.feld-anzeige h3 { margin: 0 0 4px; font-size: 13px; text-transform: uppercase; letter-spacing: .5px; color: var(--leise); }
+.feld-anzeige p { margin: 0; font-size: 17px; }
+.langtext { white-space: pre-wrap; }
+.stichpunkte { margin: 0; padding-left: 20px; }
+.stichpunkte li { margin-bottom: 6px; }
+.verlauf { margin-top: 18px; border-top: 1px solid var(--rand); padding-top: 10px; }
+.verlauf summary { cursor: pointer; font-weight: 600; }
+.verlauf ul { list-style: none; padding: 0; }
+.verlauf > ul > li { padding: 10px 0; border-bottom: 1px dashed var(--rand); display: grid; gap: 4px; }
+.verlauf .feld-anzeige { margin: 4px 0 0; }
+
+/* Gruppen & Rechte */
+.haken-liste { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 6px 0 12px; }
+.haken { display: inline-flex; align-items: center; gap: 8px; font-size: 15px; cursor: pointer; }
+.haken input { width: 20px; height: 20px; accent-color: var(--akzent); }
+.haken.gross { align-self: end; padding-bottom: 22px; }
+
 /* Admin */
 .anlegen { padding: 16px; border: 1px solid var(--rand); border-radius: 14px; }
 .anlegen h2 { margin-top: 0; }
