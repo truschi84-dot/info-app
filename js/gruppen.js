@@ -2,7 +2,7 @@
 // Wikis/Tabellen anlegen, ihre Felder festlegen und bestimmen, wer liest
 // (Gruppen, Abteilungen) und wer schreibt (Redakteure, Abteilungsleiter).
 // Alles direkt ueber die Datenbank - die Zugriffsregeln lassen nur den Admin.
-import { $, db, element, haken as sofortHaken, knopfBeschaeftigt, meldung, zeige } from "./gemeinsam.js?v=14";
+import { $, db, element, haken as sofortHaken, knopfBeschaeftigt, meldung, zeige } from "./gemeinsam.js?v=16";
 
 const FELDTYPEN = {
   text: "Text (eine Zeile)", langtext: "Text (mehrere Zeilen)", stichpunkte: "Stichpunkte",
@@ -25,7 +25,7 @@ export async function zeigeGruppen() {
 
 async function laden() {
   meldung("#gruppen-meldung", "");
-  const [p, g, m, s, l, w, a, f] = await Promise.all([
+  const [p, g, m, s, l, w, a, f, ag] = await Promise.all([
     db.from("profile").select("id, name, abteilung, aktiv").order("name"),
     db.from("unterhaltungen").select("id, art, name, fuer_alle, archiviert").neq("art", "einzel").order("name"),
     db.from("mitglieder").select("unterhaltung_id, nutzer_id"),
@@ -34,16 +34,18 @@ async function laden() {
     db.from("sammlung_schreiben").select("sammlung_id, nutzer_id"),
     db.from("sammlung_abteilung_lesen").select("sammlung_id, abteilung"),
     db.from("sammlung_felder").select("*").order("reihenfolge"),
+    db.from("sammlung_abteilung_geschuetzt").select("sammlung_id, abteilung"),
   ]);
-  const fehler = [p, g, m, s, l, w, a, f].find((x) => x.error);
+  const fehler = [p, g, m, s, l, w, a, f, ag].find((x) => x.error);
   if (fehler) return meldung("#gruppen-meldung", "Konnte nicht laden: " + fehler.error.message);
   personen = p.data.filter((x) => x.aktiv);
-  abteilungen = [...new Set([...p.data.map((x) => x.abteilung), ...a.data.map((x) => x.abteilung)].filter(Boolean))].sort();
+  abteilungen = [...new Set([...p.data.map((x) => x.abteilung), ...a.data.map((x) => x.abteilung), ...ag.data.map((x) => x.abteilung)]
+    .filter(Boolean))].sort();
 
   const gruppen = g.data.filter((x) => !x.archiviert);
   $("#gruppen-liste").replaceChildren(...(gruppen.length ? gruppen.map((gr) => gruppeKarte(gr, m.data)) :
     [element("p", { klasse: "leise", text: "Noch keine Gruppe angelegt." })]));
-  $("#rechte-liste").replaceChildren(...s.data.map((sa) => sammlungKarte(sa, gruppen, l.data, w.data, a.data, f.data)));
+  $("#rechte-liste").replaceChildren(...s.data.map((sa) => sammlungKarte(sa, gruppen, l.data, w.data, a.data, f.data, ag.data)));
 }
 
 function gruppeKarte(gr, mitglieder) {
@@ -63,7 +65,8 @@ function gruppeKarte(gr, mitglieder) {
   );
 }
 
-function sammlungKarte(sa, gruppen, lesen, schreiben, abtLesen, alleFelder) {
+function sammlungKarte(sa, gruppen, lesen, schreiben, abtLesen, alleFelder, abtGeschuetzt) {
+  const schutzAbt = new Set(abtGeschuetzt.filter((x) => x.sammlung_id === sa.id).map((x) => x.abteilung));
   const leseGruppen = new Set(lesen.filter((x) => x.sammlung_id === sa.id).map((x) => x.unterhaltung_id));
   const leseAbt = new Set(abtLesen.filter((x) => x.sammlung_id === sa.id).map((x) => x.abteilung));
   const schreiber = new Set(schreiben.filter((x) => x.sammlung_id === sa.id).map((x) => x.nutzer_id));
@@ -102,7 +105,15 @@ function sammlungKarte(sa, gruppen, lesen, schreiben, abtLesen, alleFelder) {
     element("p", { klasse: "klein", text: "Felder:" }),
     element("ul", { klasse: "felder-liste" }, ...felder.map((f) => element("li", {},
       element("span", { text: `${f.bezeichnung} · ${FELDTYPEN[f.typ] || f.typ}` }),
-      haken("in der Liste zeigen", f.in_liste, (an) => db.from("sammlung_felder").update({ in_liste: an }).eq("id", f.id))))),
+      haken("in der Liste zeigen", f.in_liste, (an) => db.from("sammlung_felder").update({ in_liste: an }).eq("id", f.id)),
+      haken("🔒 geschützt", f.geschuetzt, (an) => db.rpc("feld_schutz_setzen", { feld: f.id, an }))))),
+    felder.some((f) => f.geschuetzt) ? element("p", { klasse: "klein", text: "Geschützte Felder sehen diese Abteilungen (dazu Redakteure und Admin):" }) : null,
+    felder.some((f) => f.geschuetzt) ? element("div", { klasse: "haken-liste" }, ...abteilungen.map((ab) => haken(
+      ab, schutzAbt.has(ab),
+      (an) => an
+        ? db.from("sammlung_abteilung_geschuetzt").insert({ sammlung_id: sa.id, abteilung: ab })
+        : db.from("sammlung_abteilung_geschuetzt").delete().eq("sammlung_id", sa.id).eq("abteilung", ab),
+    ))) : null,
     feldFormular(sa, felder),
   );
 }

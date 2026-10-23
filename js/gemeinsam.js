@@ -3,7 +3,7 @@
 // nie als HTML (Plan Abschnitt 5, Falle 8).
 // Alle eigenen Module tragen dieselbe ?v=-Nummer wie in index.html. Ein Modul
 // muss ueberall mit derselben Adresse eingebunden werden, sonst laeuft es doppelt.
-import { SUPABASE, UMGEBUNG } from "./konfig.js?v=14";
+import { SUPABASE, UMGEBUNG } from "./konfig.js?v=16";
 
 export const db = window.supabase.createClient(SUPABASE.url, SUPABASE.key, {
   auth: { storageKey: `info-app-sitzung-${UMGEBUNG}`, persistSession: true, autoRefreshToken: true },

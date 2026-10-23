@@ -4,7 +4,7 @@
 // Schreiben duerfen Redakteure (ueberall) und - wenn im Wiki eingeschaltet -
 // Abteilungsleiter fuer Eintraege, die nur ihren Abteilungen zugeordnet sind.
 // Am PC stehen Liste und Eintrag nebeneinander.
-import { $, datumZeit, db, element, knopfBeschaeftigt, meldung, zeige, zeigeZwei } from "./gemeinsam.js?v=14";
+import { $, datumZeit, db, element, knopfBeschaeftigt, meldung, zeige, zeigeZwei } from "./gemeinsam.js?v=16";
 
 const SUCH_PAUSE_MS = 250;
 const breit = window.matchMedia("(min-width: 1024px)");
@@ -17,9 +17,18 @@ let redakteurIn = new Set();   // Sammlungs-IDs, in denen ich Redakteur bin
 let leitung = [];              // Abteilungen, die ich leite
 let alleAbteilungen = [];
 let namen = new Map();         // Profil-ID -> Name (fuer "geaendert von")
+let meineAbteilung = null;
+let geschuetzt = new Map();    // Eintrag-ID -> geschuetzte Werte (nur was ich sehen darf)
+let geschuetztFuer = [];       // Abteilungen, die geschuetzte Felder dieser Sammlung sehen
 let offenerEintrag = null;
 let suchUhr = null;
 let suchNr = 0;
+
+// Fenster breiter/schmaler gezogen: offenen Eintrag in der passenden Ansicht zeigen.
+breit.addEventListener("change", () => {
+  const offen = ["eintrag", "eintrag-formular"].find((n) => !document.querySelector(`[data-bildschirm="${n}"]`).hidden);
+  if (offen) rechtsZeigen(offen);
+});
 
 export function nachschlagenEinrichten(zurueck) {
   $("#nachschlagen-zurueck").addEventListener("click", zurueck);
@@ -47,6 +56,7 @@ export async function zeigeNachschlagen(angemeldet) {
   sammlungen = s.data;
   redakteurIn = new Set((w.data || []).map((x) => x.sammlung_id));
   namen = new Map((p.data || []).map((x) => [x.id, x.name]));
+  meineAbteilung = (p.data || []).find((x) => x.id === ich.id)?.abteilung || null;
   leitung = (l.data || []).map((x) => x.abteilung).sort();
   alleAbteilungen = [...new Set([...(p.data || []).map((x) => x.abteilung), ...leitung].filter(Boolean))].sort();
 
@@ -64,6 +74,11 @@ const redakteur = (s) => redakteurIn.has(s.id);
 const leiterDarfHier = (s) => s.leiter_schreiben && leitung.length > 0;
 const darfAendern = (e) => redakteur(aktuell)
   || (leiterDarfHier(aktuell) && e.abteilungen?.length > 0 && e.abteilungen.every((a) => leitung.includes(a)));
+// Geschuetzte Felder: dieselbe Regel wie intern.darf_geschuetzt_lesen in der Datenbank
+// (die Datenbank entscheidet - hier geht es nur darum, was angezeigt wird).
+const darfGeschuetzt = () => ich.rolle === "admin" || redakteur(aktuell)
+  || geschuetztFuer.includes(meineAbteilung) || leitung.some((a) => geschuetztFuer.includes(a));
+const alleWerte = (e) => ({ ...(e.werte || {}), ...(geschuetzt.get(e.id) || {}) });
 
 async function sammlungWaehlen(sammlung) {
   aktuell = sammlung;
@@ -72,8 +87,14 @@ async function sammlungWaehlen(sammlung) {
   $("#sammlung-titel").textContent = sammlung.name;
   $("#sammlung-beschreibung").textContent = sammlung.beschreibung || "";
   $("#eintrag-neu").hidden = !(redakteur(sammlung) || leiterDarfHier(sammlung));
-  const { data } = await db.from("sammlung_felder").select("*").eq("sammlung_id", sammlung.id).order("reihenfolge");
-  felder = data || [];
+  const [f, g, a] = await Promise.all([
+    db.from("sammlung_felder").select("*").eq("sammlung_id", sammlung.id).order("reihenfolge"),
+    db.from("eintrag_geschuetzt").select("eintrag_id, werte, eintraege!inner(sammlung_id)").eq("eintraege.sammlung_id", sammlung.id),
+    db.from("sammlung_abteilung_geschuetzt").select("abteilung").eq("sammlung_id", sammlung.id),
+  ]);
+  felder = f.data || [];
+  geschuetzt = new Map((g.data || []).map((x) => [x.eintrag_id, x.werte]));
+  geschuetztFuer = (a.data || []).map((x) => x.abteilung).sort();
   await listeLaden();
 }
 
@@ -111,9 +132,9 @@ function feldText(feld, wert) {
 }
 
 function listenZeile(e, listenFelder) {
-  const zusatz = listenFelder.map((f) => feldText(f, e.werte?.[f.schluessel])).filter(Boolean).join(" · ");
+  const zusatz = listenFelder.map((f) => feldText(f, alleWerte(e)[f.schluessel])).filter(Boolean).join(" · ");
   const punkte = felder.filter((f) => f.typ === "stichpunkte")
-    .reduce((n, f) => n + [].concat(e.werte?.[f.schluessel] || []).length, 0);
+    .reduce((n, f) => n + [].concat(alleWerte(e)[f.schluessel] || []).length, 0);
   return element("li", { "data-id": e.id, klasse: offenerEintrag?.id === e.id ? "offen" : "" },
     element("button", { klasse: "eintrag-knopf", onclick: () => eintragZeigen(e.id) },
       element("strong", { text: e.titel }),
@@ -132,7 +153,7 @@ function tabelle(eintraege, listenFelder) {
     element("th", { text: "Abteilung" }));
   const zeilen = eintraege.map((e) => element("tr", { onclick: () => eintragZeigen(e.id) },
     element("td", { text: e.titel }),
-    ...spalten.map((f) => element("td", { text: feldText(f, e.werte?.[f.schluessel]) })),
+    ...spalten.map((f) => element("td", { text: feldText(f, alleWerte(e)[f.schluessel]) })),
     element("td", { text: (e.abteilungen || []).join(", ") })));
   return element("div", { klasse: "tabelle-rahmen" },
     element("table", { klasse: "tabelle" }, element("thead", {}, kopf), element("tbody", {}, ...zeilen)));
@@ -159,7 +180,9 @@ async function eintragZeigen(id) {
   $("#eintrag-inhalt").replaceChildren(
     ...(e.data.abteilungen?.length ? [element("p", { klasse: "gilt-fuer" }, element("span", { klasse: "klein", text: "Gilt für: " }),
       ...e.data.abteilungen.map((a) => element("span", { klasse: "chip klein", text: a })))] : []),
-    ...felder.map((f) => feldAnzeige(f, e.data.werte?.[f.schluessel])).filter(Boolean));
+    ...felder.map((f) => (f.geschuetzt && !darfGeschuetzt()
+      ? schlossAnzeige(f)
+      : feldAnzeige(f, alleWerte(e.data)[f.schluessel]))).filter(Boolean));
   $("#eintrag-stichwoerter").replaceChildren(...(e.data.stichwoerter || []).map((s) => element("span", { klasse: "chip klein", text: s })));
   $("#eintrag-meta").textContent = `Zuletzt geändert ${datumZeit(e.data.geaendert_am)}`
     + (namen.get(e.data.geaendert_von) ? ` von ${namen.get(e.data.geaendert_von)}` : "")
@@ -186,6 +209,12 @@ async function eintragZeigen(id) {
   )));
   meldung("#eintrag-meldung", "");
   rechtsZeigen("eintrag");
+}
+
+function schlossAnzeige(feld) {
+  return element("section", { klasse: "feld-anzeige geschlossen" },
+    element("h3", { text: feld.bezeichnung }),
+    element("p", { klasse: "leise", text: `🔒 Nur für ${geschuetztFuer.length ? geschuetztFuer.join(", ") : "Berechtigte"}` }));
 }
 
 function feldAnzeige(feld, wert) {
@@ -216,7 +245,7 @@ function formularZeigen(eintrag) {
   $("#formular-ueberschrift").textContent = eintrag ? "Eintrag bearbeiten" : `Neuer Eintrag in „${aktuell.name}"`;
   $("#f-titel").value = eintrag?.titel || "";
   $("#f-stichwoerter").value = (eintrag?.stichwoerter || []).join(", ");
-  $("#formular-felder").replaceChildren(...felder.map((f) => formularFeld(f, eintrag?.werte?.[f.schluessel])));
+  $("#formular-felder").replaceChildren(...bearbeitbareFelder().map((f) => formularFeld(f, eintrag ? alleWerte(eintrag)[f.schluessel] : undefined)));
 
   // Zuordnung: Redakteure alle Abteilungen (leer = gilt fuer alle Leser),
   // Abteilungsleiter nur ihre eigenen und mindestens eine.
@@ -265,7 +294,7 @@ async function speichern() {
   const titel = $("#f-titel").value.trim();
   if (!titel) return meldung("#formular-meldung", "Bitte einen Titel eingeben.");
   const werte = {};
-  for (const f of felder) {
+  for (const f of bearbeitbareFelder()) {
     const roh = $(`#f-feld-${f.schluessel}`).value;
     let wert;
     if (f.typ === "stichpunkte") wert = roh.split("\n").map((z) => z.trim()).filter(Boolean);
@@ -282,11 +311,39 @@ async function speichern() {
 
   const knopf = $("#formular-speichern");
   knopfBeschaeftigt(knopf, true);
+  // Offene Felder in "eintraege", geschuetzte in "eintrag_geschuetzt" (eigene Regeln).
+  const offen = {};
+  const zu = {};
+  for (const f of felder) {
+    if (!(f.schluessel in werte)) continue;
+    (f.geschuetzt ? zu : offen)[f.schluessel] = werte[f.schluessel];
+  }
+  // Offene Felder, die ich nicht bearbeiten konnte, bleiben wie sie waren.
+  const offenGesamt = { ...(offenerEintrag?.werte || {}), ...offen };
+
   const r = offenerEintrag
-    ? await db.from("eintraege").update({ titel, werte, stichwoerter, abteilungen }).eq("id", offenerEintrag.id).select("id").single()
-    : await db.from("eintraege").insert({ sammlung_id: aktuell.id, titel, werte, stichwoerter, abteilungen }).select("id").single();
+    ? await db.from("eintraege").update({ titel, werte: offenGesamt, stichwoerter, abteilungen }).eq("id", offenerEintrag.id).select("id").single()
+    : await db.from("eintraege").insert({ sammlung_id: aktuell.id, titel, werte: offenGesamt, stichwoerter, abteilungen }).select("id").single();
+  if (r.error) {
+    knopfBeschaeftigt(knopf, false);
+    return meldung("#formular-meldung", "Speichern ging nicht: " + r.error.message);
+  }
+  if (Object.keys(zu).length) {
+    const alt = geschuetzt.get(r.data.id);
+    const neu = { ...(alt || {}), ...zu };
+    const g = alt
+      ? await db.from("eintrag_geschuetzt").update({ werte: neu }).eq("eintrag_id", r.data.id).select("eintrag_id")
+      : await db.from("eintrag_geschuetzt").insert({ eintrag_id: r.data.id, werte: neu }).select("eintrag_id");
+    if (g.error || !g.data?.length) {
+      knopfBeschaeftigt(knopf, false);
+      return meldung("#formular-meldung", "Geschützte Felder gingen nicht: " + (g.error?.message || "keine Berechtigung"));
+    }
+    geschuetzt.set(r.data.id, neu);
+  }
   knopfBeschaeftigt(knopf, false);
-  if (r.error) return meldung("#formular-meldung", "Speichern ging nicht: " + r.error.message);
   await eintragZeigen(r.data.id);
   listeLaden();
 }
+
+// Geschuetzte Felder nur, wenn ich sie sehen darf - sonst wuerde ich blind ueberschreiben.
+const bearbeitbareFelder = () => felder.filter((f) => !f.geschuetzt || darfGeschuetzt());

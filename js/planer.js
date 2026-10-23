@@ -2,7 +2,7 @@
 // eigener Urlaub (Antrag), fuer Admins die offenen Antraege.
 // Geschrieben wird ueber die Datenbank-Funktionen abwesenheit_* und direkt
 // in "termine" - die Zugriffsregeln entscheiden, wer was darf.
-import { $, db, element, knopfBeschaeftigt, meldung, zeige } from "./gemeinsam.js?v=14";
+import { $, db, element, knopfBeschaeftigt, meldung, zeige } from "./gemeinsam.js?v=16";
 
 const ARTEN = { urlaub: "Urlaub", schule: "Schule / Fortbildung", sonstiges: "Sonstiges" };
 const STATUS = { beantragt: "beantragt", genehmigt: "genehmigt", abgelehnt: "abgelehnt", zurueckgezogen: "zurückgezogen" };
