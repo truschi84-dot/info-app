@@ -5,8 +5,8 @@
 // Gelesen: im Einzelchat Haken, in Gruppen eine Zahl erst ab 3 Empfaengern
 // (chat_gelesen_zahlen liefert nur Zahlen je eigener Nachricht, sonst nichts).
 // Als gelesen gilt nur, was wirklich auf dem Bildschirm steht.
-import { $, abteilungsChip, db, element, knopfBeschaeftigt, meldung, zeige, zeigeZwei } from "./gemeinsam.js?v=28";
-import { chatMelden } from "./hinweise.js?v=28";
+import { $, abteilungsChip, db, element, knopfBeschaeftigt, meldung, zeige, zeigeZwei } from "./gemeinsam.js?v=29";
+import { chatMelden } from "./hinweise.js?v=29";
 
 const NACHSEHEN_MS = 20000;
 const SEITE = 100;

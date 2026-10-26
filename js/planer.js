@@ -5,7 +5,7 @@
 // in "termine" - die Zugriffsregeln entscheiden, wer was darf.
 import {
   $, abteilungsChip, db, eingefaerbt, element, farbenLaden, hoechstzahl, knopfBeschaeftigt, meldung, zeige,
-} from "./gemeinsam.js?v=28";
+} from "./gemeinsam.js?v=29";
 
 const ARTEN = { urlaub: "Urlaub", schule: "Schule / Fortbildung", sonstiges: "Sonstiges", krank: "Krank" };
 // Zeichen je Abwesenheit. "Krank" sehen nur Leitung, Freigeber und Admin (Datenbank-Regel).
@@ -377,6 +377,7 @@ async function belegungZeichnen() {
     : `Deine Abteilung${abteilungen.length === 1 ? "" : "en"}: ${abteilungen.join(", ") || "–"}`;
   await farbenLaden();
 
+  heuteWegZeigen(abteilungen);
   const tage = tageZwischen(start, ende);
   const heute = isoTag(new Date());
   const wochenende = (iso) => { const [j, m, t] = iso.split("-").map(Number); return [0, 6].includes(new Date(j, m - 1, t).getDay()); };
@@ -422,6 +423,23 @@ async function belegungZeichnen() {
     rahmen.scrollLeft += heuteSpalte.getBoundingClientRect().left - rahmen.getBoundingClientRect().left
       - namensSpalte.getBoundingClientRect().width - 2 * heuteSpalte.getBoundingClientRect().width;
   }
+}
+
+// Kopfzeile "Heute weg": krank (sieht nur, wer es sehen darf - die Datenbank
+// liefert es sonst gar nicht) und Urlaub/Schule, je mit Namen.
+async function heuteWegZeigen(abteilungen) {
+  const heute = isoTag(new Date());
+  const { data } = await db.from("abwesenheiten").select("profil_id, art").eq("status", "genehmigt").lte("von", heute).gte("bis", heute);
+  const leuteHier = new Set(leute.filter((x) => abteilungen.includes(x.abteilung)).map((x) => x.id));
+  const weg = (data || []).filter((a) => leuteHier.has(a.profil_id));
+  const gruppe = (titel, liste) => (liste.length ? element("span", {}, element("strong", { text: titel }),
+    document.createTextNode(liste.map((a) => namen.get(a.profil_id)).sort().join(", "))) : null);
+  const krank = weg.filter((a) => a.art === "krank");
+  const sonst = weg.filter((a) => a.art !== "krank");
+  $("#ueb-heute").replaceChildren(...(weg.length
+    ? [element("span", { klasse: "klein", text: "Heute weg:" }),
+      gruppe(`🤒 ${krank.length} krank:`, krank), gruppe(`🌴 ${sonst.length} Urlaub/Schule:`, sonst)].filter(Boolean)
+    : []));
 }
 
 function hoechstzahlWahl(abt, max) {
