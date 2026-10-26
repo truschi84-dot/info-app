@@ -3,16 +3,16 @@
 //   gueltige Sitzung          -> Start
 //   Geraet eingerichtet       -> PIN
 //   sonst                     -> Einladung
-import { $, db, farbenLaden, geraetLesen, zeige } from "./gemeinsam.js?v=29";
-import { UMGEBUNG } from "./konfig.js?v=29";
-import { anmeldungEinrichten, codeAus, zeigeEinladung, zeigePin } from "./anmelden.js?v=29";
-import { adminEinrichten, zeigeAdmin } from "./admin.js?v=29";
-import { eintragOeffnen, nachschlagenEinrichten, zeigeNachschlagen } from "./nachschlagen.js?v=29";
-import { neuigkeiten, pushAusschalten, pushEinschalten, pushStatus, swRegistrieren } from "./hinweise.js?v=29";
-import { gruppenEinrichten, zeigeGruppen } from "./gruppen.js?v=29";
-import { planerEinrichten, zeigePlaner } from "./planer.js?v=29";
-import { notizenEinrichten, zeigeNotizen } from "./notizen.js?v=29";
-import { chatOeffnen, chatsEinrichten, chatsUngelesen, zeigeChats } from "./chats.js?v=29";
+import { $, db, farbenLaden, geraetLesen, zeige } from "./gemeinsam.js?v=30";
+import { UMGEBUNG } from "./konfig.js?v=30";
+import { anmeldungEinrichten, codeAus, zeigeEinladung, zeigePin } from "./anmelden.js?v=30";
+import { adminEinrichten, zeigeAdmin } from "./admin.js?v=30";
+import { eintragOeffnen, nachschlagenEinrichten, zeigeNachschlagen } from "./nachschlagen.js?v=30";
+import { neuigkeiten, pushAusschalten, pushEinschalten, pushStatus, swRegistrieren } from "./hinweise.js?v=30";
+import { gruppenEinrichten, zeigeGruppen } from "./gruppen.js?v=30";
+import { planerEinrichten, zeigePlaner } from "./planer.js?v=30";
+import { notizenEinrichten, zeigeNotizen } from "./notizen.js?v=30";
+import { chatOeffnen, chatsEinrichten, chatsUngelesen, zeigeChats } from "./chats.js?v=30";
 
 let ich = null;
 let offenerLink = null; // { art, id } aus einer Push-Nachricht, wird nach der Anmeldung geoeffnet

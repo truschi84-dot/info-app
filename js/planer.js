@@ -5,7 +5,7 @@
 // in "termine" - die Zugriffsregeln entscheiden, wer was darf.
 import {
   $, abteilungsChip, db, eingefaerbt, element, farbenLaden, hoechstzahl, knopfBeschaeftigt, meldung, zeige,
-} from "./gemeinsam.js?v=29";
+} from "./gemeinsam.js?v=30";
 
 const ARTEN = { urlaub: "Urlaub", schule: "Schule / Fortbildung", sonstiges: "Sonstiges", krank: "Krank" };
 // Zeichen je Abwesenheit. "Krank" sehen nur Leitung, Freigeber und Admin (Datenbank-Regel).
@@ -436,7 +436,7 @@ async function heuteWegZeigen(abteilungen) {
     document.createTextNode(liste.map((a) => namen.get(a.profil_id)).sort().join(", "))) : null);
   const krank = weg.filter((a) => a.art === "krank");
   const sonst = weg.filter((a) => a.art !== "krank");
-  $("#ueb-heute").replaceChildren(...(weg.length
+  $("#ueb-weg").replaceChildren(...(weg.length
     ? [element("span", { klasse: "klein", text: "Heute weg:" }),
       gruppe(`🤒 ${krank.length} krank:`, krank), gruppe(`🌴 ${sonst.length} Urlaub/Schule:`, sonst)].filter(Boolean)
     : []));
