@@ -297,7 +297,7 @@
     <span id="notiz-status" class="klein"></span>
   </div>
   <input id="notiz-titel" class="notiz-titel" maxlength="120" placeholder="Titel" aria-label="Titel">
-  <textarea id="notiz-text" class="notiz-text" placeholder="Notiz schreiben …" aria-label="Notiz"></textarea>
+  <textarea id="notiz-text" class="notiz-text" maxlength="20000" placeholder="Notiz schreiben …" aria-label="Notiz"></textarea>
   <div class="knoepfe klein">
     <label class="haken"><input type="checkbox" id="notiz-anheften"><span>📌 Oben anheften</span></label>
     <button id="notiz-loeschen" class="gefahr">Löschen</button>
@@ -449,6 +449,6 @@
 
 <script src="lib/supabase.min.js?v=2.45.4"></script>
 <script src="lib/qrcode.js?v=2.0.4"></script>
-<script type="module" src="js/app.js?v=25"></script>
+<script type="module" src="js/app.js?v=26"></script>
 </body>
 </html>

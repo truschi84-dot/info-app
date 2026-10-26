@@ -3,9 +3,10 @@
 // die Regeln); faellt das aus, wird alle 20 Sekunden nachgesehen.
 // Texte immer per textContent - nie als HTML (Plan, Falle 8).
 // Gelesen: im Einzelchat Haken, in Gruppen eine Zahl erst ab 3 Empfaengern
-// (chat_lesestand liefert sonst nichts).
-import { $, abteilungsChip, db, element, knopfBeschaeftigt, meldung, zeige, zeigeZwei } from "./gemeinsam.js?v=25";
-import { chatMelden } from "./hinweise.js?v=25";
+// (chat_gelesen_zahlen liefert nur Zahlen je eigener Nachricht, sonst nichts).
+// Als gelesen gilt nur, was wirklich auf dem Bildschirm steht.
+import { $, abteilungsChip, db, element, knopfBeschaeftigt, meldung, zeige, zeigeZwei } from "./gemeinsam.js?v=26";
+import { chatMelden } from "./hinweise.js?v=26";
 
 const NACHSEHEN_MS = 20000;
 const SEITE = 100;
@@ -19,15 +20,19 @@ let offen = null;          // Zeile aus meine_chats
 let nachrichten = [];
 let namen = new Map();
 let abteilungVon = new Map();
-let lesestand = null;      // { empfaenger, gelesen_bis[] }
+let gelesenZahlen = new Map(); // eigene Nachricht -> { gelesen, empfaenger }
+let lauf = 0;             // zaehlt Chat-Wechsel: alte Antworten/Kanaele erkennen
+let sendetGerade = false;
+const entwuerfe = new Map(); // Chat -> angefangener Text (bleibt beim Wechseln im richtigen Chat)
 let kanal = null;
 let listenKanal = null;
 let uhr = null;
 let alleGeladen = false;
+let mitApp = new Set();      // anschreiben kann man nur, wer die App benutzt
 
 export function chatsEinrichten(zurueck) {
-  $("#chats-zurueck").addEventListener("click", () => { schliessen(); zurueck(); });
-  $("#chat-zurueck").addEventListener("click", () => { kanalZu(); offen = null; zeigeChats(ich); });
+  $("#chats-zurueck").addEventListener("click", () => { entwurfMerken(); schliessen(); zurueck(); });
+  $("#chat-zurueck").addEventListener("click", () => { entwurfMerken(); kanalZu(); offen = null; zeigeChats(ich); });
   $("#chat-neu").addEventListener("click", () => { $("#chat-personen").hidden = !$("#chat-personen").hidden; personenZeichnen(); });
   $("#chat-personen-suche").addEventListener("input", personenZeichnen);
   $("#chat-form").addEventListener("submit", (e) => { e.preventDefault(); senden(); });
@@ -36,9 +41,14 @@ export function chatsEinrichten(zurueck) {
     if (e.key === "Enter" && !e.shiftKey && breit.matches) { e.preventDefault(); senden(); }
   });
   $("#chat-aeltere").addEventListener("click", aeltereLaden);
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible" && offen && !$("[data-bildschirm=chat]").hidden) nachrichtenLaden();
-  });
+  document.addEventListener("visibilitychange", () => { if (chatSichtbar()) nachrichtenLaden(); });
+}
+
+// Nur wenn der Chat wirklich zu sehen ist, wird geladen und als gelesen markiert.
+const chatSichtbar = () => !!offen && document.visibilityState === "visible" && !$("[data-bildschirm=chat]").hidden;
+
+function entwurfMerken() {
+  if (offen) entwuerfe.set(offen.id, $("#chat-text").value);
 }
 
 // Fuer die Kachel auf der Startseite.
@@ -51,14 +61,16 @@ export async function zeigeChats(angemeldet) {
   ich = angemeldet;
   if (!(breit.matches && offen)) zeige("chats");
   meldung("#chats-meldung", "");
-  const [c, p] = await Promise.all([
+  const [c, p, a] = await Promise.all([
     db.rpc("meine_chats"),
     db.from("profile").select("id, name, abteilung, aktiv").eq("aktiv", true).order("name"),
+    db.rpc("personen_mit_app"),
   ]);
   if (c.error) return meldung("#chats-meldung", "Konnte nicht laden: " + c.error.message);
   chats = c.data;
   namen = new Map((p.data || []).map((x) => [x.id, x.name]));
   abteilungVon = new Map((p.data || []).map((x) => [x.id, x.abteilung]));
+  mitApp = new Set(a.data || []);
   listeZeichnen();
   personenZeichnen();
   listeLive();
@@ -89,7 +101,7 @@ function listeZeichnen() {
 
 function personenZeichnen() {
   const suche = $("#chat-personen-suche").value.trim().toLowerCase();
-  const leute = [...namen.entries()].filter(([id, n]) => id !== ich?.id && (!suche || n.toLowerCase().includes(suche)));
+  const leute = [...namen.entries()].filter(([id, n]) => id !== ich?.id && mitApp.has(id) && (!suche || n.toLowerCase().includes(suche)));
   $("#chat-personen-liste").replaceChildren(...leute.map(([id, n]) => element("li", {},
     element("button", { klasse: "eintrag-knopf", onclick: (e) => einzelchat(id, e.currentTarget) },
       element("strong", { text: n }),
@@ -108,8 +120,11 @@ async function einzelchat(person, knopf) {
 
 // ── Ein Chat ────────────────────────────────────────────────────────────
 async function chatZeigen(c) {
+  entwurfMerken();
   kanalZu();
+  const meinLauf = ++lauf;
   offen = c;
+  gelesenZahlen = new Map();
   alleGeladen = false;
   nachrichten = [];
   $("#chat-titel").textContent = c.name || "?";
@@ -121,12 +136,13 @@ async function chatZeigen(c) {
   $("#chat-extras").hidden = c.art !== "ankuendigung";
   $("#chat-haltbarkeit").value = "";
   $("#chat-wichtig").checked = false;
+  $("#chat-text").value = entwuerfe.get(c.id) || ""; // angefangener Text bleibt in seinem Chat
   meldung("#chat-meldung", "");
   if (breit.matches) zeigeZwei("chats", "chat");
   else zeige("chat");
   for (const li of document.querySelectorAll("#chats-liste li")) li.classList.toggle("offen", li.dataset.id === c.id);
   await nachrichtenLaden();
-  live();
+  if (meinLauf === lauf) live(c.id); // inzwischen anderen Chat gewaehlt: keinen Kanal fuer den alten
 }
 
 async function nachrichtenLaden() {
@@ -134,15 +150,15 @@ async function nachrichtenLaden() {
   const id = offen.id;
   const [n, l] = await Promise.all([
     db.from("nachrichten").select(SPALTEN).eq("unterhaltung_id", id).order("erstellt_am", { ascending: false }).limit(Math.max(SEITE, nachrichten.length)),
-    db.rpc("chat_lesestand", { chat: id }),
+    db.rpc("chat_gelesen_zahlen", { chat: id }),
   ]);
   if (offen?.id !== id) return;
   if (n.error) return meldung("#chat-meldung", "Konnte nicht laden: " + n.error.message);
   alleGeladen = alleGeladen || n.data.length < Math.max(SEITE, nachrichten.length);
   nachrichten = n.data.reverse();
-  lesestand = l.data?.[0] || null;
+  gelesenZahlen = new Map((l.data || []).map((x) => [x.nachricht_id, x]));
   verlaufZeichnen();
-  if (document.visibilityState === "visible") gelesen();
+  if (chatSichtbar()) gelesen();
 }
 
 async function aeltereLaden() {
@@ -156,7 +172,7 @@ async function aeltereLaden() {
 }
 
 async function gelesen() {
-  if (!offen || !nachrichten.some((n) => n.autor_id !== ich.id)) return;
+  if (!chatSichtbar() || !nachrichten.some((n) => n.autor_id !== ich.id)) return;
   await db.rpc("chat_gelesen", { chat: offen.id });
   const c = chats.find((x) => x.id === offen.id);
   if (c && c.ungelesen) { c.ungelesen = 0; listeZeichnen(); }
@@ -196,36 +212,44 @@ function blase(n) {
   return b;
 }
 
-// Einzelchat: ✓ gesendet, ✓✓ gelesen. Gruppe: "gelesen n" (nur ab 3 Empfaengern).
+// Einzelchat: ✓ gesendet, ✓✓ gelesen. Gruppe: "gelesen n/m" (die Datenbank
+// liefert in Gruppen unter 3 Empfaengern nichts - dann steht hier nichts).
 function gelesenText(n) {
-  if (!lesestand) return "";
-  // Als Zeitpunkte vergleichen, nicht als Text (Nachkommastellen sind nicht immer gleich lang).
-  const gesendet = Date.parse(n.erstellt_am);
-  const gelesenVon = (lesestand.gelesen_bis || []).filter((t) => Date.parse(t) >= gesendet).length;
-  if (offen.art === "einzel") return gelesenVon ? "✓✓" : "✓";
-  if (lesestand.gelesen_bis === null) return "";
-  return `gelesen ${gelesenVon}/${lesestand.empfaenger}`;
+  const z = gelesenZahlen.get(n.id);
+  if (offen.art === "einzel") return z?.gelesen ? "✓✓" : "✓";
+  return z ? `gelesen ${z.gelesen}/${z.empfaenger}` : "";
 }
 
 async function senden() {
-  const text = $("#chat-text").value.trim();
-  if (!text || !offen) return;
+  const feld = $("#chat-text");
+  const text = feld.value.trim();
+  // sendetGerade: zweimal schnell Enter darf nicht zwei Nachrichten ergeben.
+  if (!text || !offen || sendetGerade) return;
+  sendetGerade = true;
+  const chat = offen.id;
+  feld.value = ""; // sofort leeren - was jetzt getippt wird, gehoert zur naechsten Nachricht
+  entwuerfe.delete(chat);
   const knopf = $("#chat-senden");
   knopfBeschaeftigt(knopf, true);
   const tage = $("#chat-haltbarkeit").value;
-  const zeile = { unterhaltung_id: offen.id, text };
+  const zeile = { unterhaltung_id: chat, text };
   if (offen.art === "ankuendigung") {
     zeile.wichtig = $("#chat-wichtig").checked;
     if (tage) zeile.ablauf_am = new Date(Date.now() + Number(tage) * 86400e3).toISOString();
   }
   const { data, error } = await db.from("nachrichten").insert(zeile).select(SPALTEN).single();
   knopfBeschaeftigt(knopf, false);
-  if (error) return meldung("#chat-meldung", "Senden ging nicht: " + error.message);
+  sendetGerade = false;
+  if (error) {
+    // Text zurueck ins Feld (vor das inzwischen Getippte), damit nichts verloren geht.
+    if (offen?.id === chat) feld.value = text + (feld.value ? "\n" + feld.value : "");
+    else entwuerfe.set(chat, text);
+    return meldung("#chat-meldung", "Senden ging nicht: " + error.message);
+  }
   meldung("#chat-meldung", "");
-  $("#chat-text").value = "";
   $("#chat-wichtig").checked = false;
-  if (!nachrichten.some((x) => x.id === data.id)) nachrichten.push(data);
-  verlaufZeichnen();
+  if (offen?.id === chat && !nachrichten.some((x) => x.id === data.id)) nachrichten.push(data);
+  if (offen?.id === chat) verlaufZeichnen();
   chatMelden(data.id); // Push an die anderen - im Hintergrund, Fehler stoeren das Senden nicht
 }
 
@@ -237,14 +261,16 @@ async function loeschen(n) {
 }
 
 // ── Live ────────────────────────────────────────────────────────────────
-function live() {
-  if (!offen) return;
-  const id = offen.id;
-  kanal = db.channel(`chat-${id}`)
-    .on("postgres_changes", { event: "*", schema: "public", table: "nachrichten", filter: `unterhaltung_id=eq.${id}` }, () => nachrichtenLaden())
+// Nur Neu und Geaendert: Loesch-Ereignisse prueft Supabase gegen keine Regel und
+// keinen Filter - die kaemen von allen Chats und loesten unnoetiges Nachladen aus.
+function live(id) {
+  kanalZu();
+  kanal = db.channel(`chat-${id}-${lauf}`)
+    .on("postgres_changes", { event: "INSERT", schema: "public", table: "nachrichten", filter: `unterhaltung_id=eq.${id}` }, () => nachrichtenLaden())
+    .on("postgres_changes", { event: "UPDATE", schema: "public", table: "nachrichten", filter: `unterhaltung_id=eq.${id}` }, () => nachrichtenLaden())
     .subscribe();
-  // Rueckfall und "gelesen" der anderen: regelmaessig nachsehen, solange sichtbar.
-  uhr = setInterval(() => { if (document.visibilityState === "visible") nachrichtenLaden(); }, NACHSEHEN_MS);
+  // Rueckfall und "gelesen" der anderen: regelmaessig nachsehen, solange der Chat zu sehen ist.
+  uhr = setInterval(() => { if (chatSichtbar()) nachrichtenLaden(); }, NACHSEHEN_MS);
 }
 
 function listeLive() {
