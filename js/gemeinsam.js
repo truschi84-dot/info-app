@@ -3,7 +3,7 @@
 // nie als HTML (Plan Abschnitt 5, Falle 8).
 // Alle eigenen Module tragen dieselbe ?v=-Nummer wie in index.html. Ein Modul
 // muss ueberall mit derselben Adresse eingebunden werden, sonst laeuft es doppelt.
-import { SUPABASE, UMGEBUNG } from "./konfig.js?v=30";
+import { SUPABASE, UMGEBUNG } from "./konfig.js?v=32";
 
 export const db = window.supabase.createClient(SUPABASE.url, SUPABASE.key, {
   auth: { storageKey: `info-app-sitzung-${UMGEBUNG}`, persistSession: true, autoRefreshToken: true },
@@ -62,7 +62,28 @@ export const $ = (sel, wurzel = document) => wurzel.querySelector(sel);
 export function zeige(name) {
   document.body.classList.remove("zweispaltig");
   for (const b of document.querySelectorAll("[data-bildschirm]")) b.hidden = b.dataset.bildschirm !== name;
+  leisteSetzen(name);
   window.scrollTo(0, 0);
+}
+
+// Feste Leiste: welcher Knopf gehoert zu welchem Bildschirm. Nicht in der Liste
+// (Anmeldung, PIN, Verwaltung) = keine Leiste. In Chat, Notiz und Formular
+// blendet das Handy sie aus, damit die Tastatur Platz hat (CSS).
+const LEISTE = {
+  start: "zu-heute", chats: "zu-chats", chat: "zu-chats", planer: "zum-planer",
+  nachschlagen: "zum-nachschlagen", eintrag: "zum-nachschlagen", "eintrag-formular": "zum-nachschlagen",
+  notizen: "zu-notizen", notiz: "zu-notizen", admin: "zu-heute", gruppen: "zu-heute",
+};
+const OHNE_LEISTE_HANDY = new Set(["chat", "notiz", "eintrag-formular"]);
+
+function leisteSetzen(name) {
+  const leiste = $("#leiste");
+  if (!leiste) return;
+  const mit = name in LEISTE;
+  leiste.hidden = !mit;
+  document.body.classList.toggle("mit-leiste", mit);
+  document.body.classList.toggle("ohne-leiste-handy", OHNE_LEISTE_HANDY.has(name));
+  for (const k of leiste.querySelectorAll("button")) k.classList.toggle("an", k.id === LEISTE[name]);
 }
 
 // Am PC zwei Bildschirme nebeneinander (z. B. Liste links, Eintrag rechts).
@@ -71,6 +92,7 @@ export function zeigeZwei(links, rechts) {
   for (const b of document.querySelectorAll("[data-bildschirm]")) {
     b.hidden = b.dataset.bildschirm !== links && b.dataset.bildschirm !== rechts;
   }
+  leisteSetzen(links);
 }
 
 export function meldung(ziel, text, art = "fehler") {

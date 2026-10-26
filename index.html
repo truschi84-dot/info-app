@@ -12,7 +12,7 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="icon" href="icons/icon-192.png">
 <title>Info-App</title>
-<link rel="stylesheet" href="css/app.css?v=18">
+<link rel="stylesheet" href="css/app.css?v=20">
 </head>
 <body>
 
@@ -81,16 +81,11 @@
   <div class="kopf">
     <div>
       <h1 id="start-hallo">Hallo</h1>
-      <p class="unter" id="start-umgebung"></p>
+      <p class="unter"><span id="start-datum"></span> <span id="start-umgebung" class="klein"></span></p>
     </div>
     <button id="abmelden" class="neben klein-knopf">Abmelden</button>
   </div>
-  <ul class="teile">
-    <li class="offen"><button id="zu-chats"><span>💬</span> Chats<em id="chats-zahl" class="neu-zahl" hidden></em></button></li>
-    <li class="offen"><button id="zum-nachschlagen"><span>📖</span> Nachschlagen<em id="wiki-neu-zahl" class="neu-zahl" hidden></em></button></li>
-    <li class="offen"><button id="zum-planer"><span>📅</span> Planer</button></li>
-    <li class="offen"><button id="zu-notizen"><span>📝</span> Notizen</button></li>
-  </ul>
+  <div id="heute" class="heute-raster" aria-live="polite"></div>
   <div id="push-bereich" class="push-bereich" hidden>
     <p id="push-text" class="klein"></p>
     <button id="push-knopf" class="neben klein-knopf" hidden></button>
@@ -448,8 +443,17 @@
   </div>
 </div>
 
+<!-- Feste Leiste: am Handy unten, am PC links -->
+<nav id="leiste" class="leiste" aria-label="Hauptnavigation" hidden>
+  <button id="zu-heute"><span aria-hidden="true">🏠</span>Heute</button>
+  <button id="zu-chats"><span aria-hidden="true">💬</span>Chats<em id="chats-zahl" class="neu-zahl" hidden></em></button>
+  <button id="zum-planer"><span aria-hidden="true">📅</span>Planer</button>
+  <button id="zum-nachschlagen"><span aria-hidden="true">📖</span>Wissen<em id="wiki-neu-zahl" class="neu-zahl" hidden></em></button>
+  <button id="zu-notizen"><span aria-hidden="true">📝</span>Notizen</button>
+</nav>
+
 <script src="lib/supabase.min.js?v=2.45.4"></script>
 <script src="lib/qrcode.js?v=2.0.4"></script>
-<script type="module" src="js/app.js?v=30"></script>
+<script type="module" src="js/app.js?v=32"></script>
 </body>
 </html>

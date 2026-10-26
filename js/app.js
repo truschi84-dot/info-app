@@ -3,16 +3,17 @@
 //   gueltige Sitzung          -> Start
 //   Geraet eingerichtet       -> PIN
 //   sonst                     -> Einladung
-import { $, db, farbenLaden, geraetLesen, zeige } from "./gemeinsam.js?v=30";
-import { UMGEBUNG } from "./konfig.js?v=30";
-import { anmeldungEinrichten, codeAus, zeigeEinladung, zeigePin } from "./anmelden.js?v=30";
-import { adminEinrichten, zeigeAdmin } from "./admin.js?v=30";
-import { eintragOeffnen, nachschlagenEinrichten, zeigeNachschlagen } from "./nachschlagen.js?v=30";
-import { neuigkeiten, pushAusschalten, pushEinschalten, pushStatus, swRegistrieren } from "./hinweise.js?v=30";
-import { gruppenEinrichten, zeigeGruppen } from "./gruppen.js?v=30";
-import { planerEinrichten, zeigePlaner } from "./planer.js?v=30";
-import { notizenEinrichten, zeigeNotizen } from "./notizen.js?v=30";
-import { chatOeffnen, chatsEinrichten, chatsUngelesen, zeigeChats } from "./chats.js?v=30";
+import { $, db, farbenLaden, geraetLesen, zeige } from "./gemeinsam.js?v=32";
+import { UMGEBUNG } from "./konfig.js?v=32";
+import { anmeldungEinrichten, codeAus, zeigeEinladung, zeigePin } from "./anmelden.js?v=32";
+import { adminEinrichten, zeigeAdmin } from "./admin.js?v=32";
+import { eintragOeffnen, nachschlagenEinrichten, zeigeNachschlagen } from "./nachschlagen.js?v=32";
+import { neuigkeiten, pushAusschalten, pushEinschalten, pushStatus, swRegistrieren } from "./hinweise.js?v=32";
+import { gruppenEinrichten, zeigeGruppen } from "./gruppen.js?v=32";
+import { planerEinrichten, zeigePlaner } from "./planer.js?v=32";
+import { notizenEinrichten, zeigeNotizen } from "./notizen.js?v=32";
+import { chatOeffnen, chatsEinrichten, chatsUngelesen, zeigeChats } from "./chats.js?v=32";
+import { begruessung, heuteZeigen } from "./heute.js?v=32";
 
 let ich = null;
 let offenerLink = null; // { art, id } aus einer Push-Nachricht, wird nach der Anmeldung geoeffnet
@@ -40,8 +41,10 @@ async function zeigeStart() {
   ich = await ichSelbst();
   if (!ich) return ohneSitzung();
   farbenLaden();
-  $("#start-hallo").textContent = `Hallo ${ich.name}`;
-  $("#start-umgebung").textContent = UMGEBUNG === "test" ? "Testumgebung" : "";
+  const g = begruessung(ich.name);
+  $("#start-hallo").textContent = g.titel;
+  $("#start-datum").textContent = g.datum;
+  $("#start-umgebung").textContent = UMGEBUNG === "test" ? "· Testumgebung" : "";
   $("#admin-knoepfe").hidden = ich.rolle !== "admin";
   zeige("start");
   if (offenerLink) {
@@ -50,11 +53,18 @@ async function zeigeStart() {
     return linkOeffnen(link);
   }
   hinweiseZeigen();
+  heuteZeigen(ich, {
+    chat: (id) => chatOeffnen(ich, id),
+    chats: () => zeigeChats(ich),
+    eintrag: (id) => eintragOeffnen(ich, id),
+    nachschlagen: () => zeigeNachschlagen(ich),
+    planer: (reiter) => zeigePlaner(ich, reiter),
+  });
 }
 
 async function hinweiseZeigen() {
   const [neu, ungelesen] = await Promise.all([neuigkeiten(), chatsUngelesen()]);
-  $("#wiki-neu-zahl").textContent = `${neu.length} neu`;
+  $("#wiki-neu-zahl").textContent = String(neu.length);
   $("#wiki-neu-zahl").hidden = !neu.length;
   $("#chats-zahl").textContent = String(ungelesen);
   $("#chats-zahl").hidden = !ungelesen;
@@ -121,6 +131,7 @@ async function start() {
   $("#zum-nachschlagen").addEventListener("click", () => zeigeNachschlagen(ich));
   $("#zum-planer").addEventListener("click", () => zeigePlaner(ich));
   $("#zu-notizen").addEventListener("click", () => zeigeNotizen());
+  $("#zu-heute").addEventListener("click", () => zeigeStart());
   $("#zu-chats").addEventListener("click", () => zeigeChats(ich));
   $("#push-knopf").addEventListener("click", pushUmschalten);
 

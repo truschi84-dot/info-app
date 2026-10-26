@@ -4,7 +4,7 @@
 // Was noch nicht beim Server ist, liegt als Entwurf je Notiz bereit (auch im
 // Geraet gespeichert) - ohne Netz geht nichts verloren, und eine spaete
 // Server-Antwort kann nie eine andere Notiz ueberschreiben.
-import { $, datumZeit, db, element, meldung, zeige, zeigeZwei } from "./gemeinsam.js?v=30";
+import { $, datumZeit, db, element, meldung, zeige, zeigeZwei } from "./gemeinsam.js?v=32";
 
 const SPEICHER_PAUSE_MS = 800;
 const breit = window.matchMedia("(min-width: 1024px)");

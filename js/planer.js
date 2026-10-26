@@ -5,7 +5,7 @@
 // in "termine" - die Zugriffsregeln entscheiden, wer was darf.
 import {
   $, abteilungsChip, db, eingefaerbt, element, farbenLaden, hoechstzahl, knopfBeschaeftigt, meldung, zeige,
-} from "./gemeinsam.js?v=30";
+} from "./gemeinsam.js?v=32";
 
 const ARTEN = { urlaub: "Urlaub", schule: "Schule / Fortbildung", sonstiges: "Sonstiges", krank: "Krank" };
 // Zeichen je Abwesenheit. "Krank" sehen nur Leitung, Freigeber und Admin (Datenbank-Regel).
@@ -68,8 +68,10 @@ export function planerEinrichten(zurueck) {
   for (const id of ["#u-von", "#u-bis"]) $(id).addEventListener("change", halbtagsPruefen);
 }
 
-export async function zeigePlaner(angemeldet) {
+// reiter (frei): "kalender" | "urlaub" | "abteilung" | "antraege" - z. B. von der Heute-Seite.
+export async function zeigePlaner(angemeldet, reiter) {
   ich = angemeldet;
+  if (reiter) ansicht = reiter;
   zeige("planer");
   const [p, g, m, l] = await Promise.all([
     db.from("profile").select("id, name, abteilung, aktiv").order("name"),
