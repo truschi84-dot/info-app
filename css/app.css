@@ -429,3 +429,4 @@ button.laedt::after { content: " …"; }
   body.zweispaltig #chat-zurueck { display: none; }
   .chat-karte { height: calc(100vh - 48px); }
 }
+.belegung td.weg.krank { background: repeating-linear-gradient(-45deg, #64748b 0 4px, #94a3b8 4px 8px); color: #fff; }

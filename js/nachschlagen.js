@@ -5,8 +5,8 @@
 // Abteilungsleiter fuer Eintraege, die nur ihren Abteilungen zugeordnet sind.
 // Am PC stehen Liste und Eintrag nebeneinander. Oben steht, was seit dem
 // letzten Oeffnen neu oder geaendert ist (wiki_neu).
-import { $, abteilungsChip, datumZeit, db, element, knopfBeschaeftigt, meldung, zeige, zeigeZwei } from "./gemeinsam.js?v=26";
-import { allesGesehen, eintragGesehen, neuigkeiten, wikiMelden } from "./hinweise.js?v=26";
+import { $, abteilungsChip, datumZeit, db, element, knopfBeschaeftigt, meldung, zeige, zeigeZwei } from "./gemeinsam.js?v=27";
+import { allesGesehen, eintragGesehen, neuigkeiten, wikiMelden } from "./hinweise.js?v=27";
 
 const SUCH_PAUSE_MS = 250;
 const breit = window.matchMedia("(min-width: 1024px)");

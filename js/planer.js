@@ -5,9 +5,11 @@
 // in "termine" - die Zugriffsregeln entscheiden, wer was darf.
 import {
   $, abteilungsChip, db, eingefaerbt, element, farbenLaden, hoechstzahl, knopfBeschaeftigt, meldung, zeige,
-} from "./gemeinsam.js?v=26";
+} from "./gemeinsam.js?v=27";
 
-const ARTEN = { urlaub: "Urlaub", schule: "Schule / Fortbildung", sonstiges: "Sonstiges" };
+const ARTEN = { urlaub: "Urlaub", schule: "Schule / Fortbildung", sonstiges: "Sonstiges", krank: "Krank" };
+// Zeichen je Abwesenheit. "Krank" sehen nur Leitung, Freigeber und Admin (Datenbank-Regel).
+const zeichen = (a) => (a.art === "krank" ? "🤒" : a.status === "beantragt" ? "⏳" : a.art === "schule" ? "📚" : "🌴");
 const STATUS = { beantragt: "beantragt", genehmigt: "genehmigt", abgelehnt: "abgelehnt", zurueckgezogen: "zurückgezogen" };
 const MONATE = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
 const WOCHENTAGE = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
@@ -92,6 +94,10 @@ export async function zeigePlaner(angemeldet) {
   $("#u-fuer").replaceChildren(element("option", { value: "", text: "mich" }),
     ...team.map((x) => element("option", { value: x.id, text: x.name + (x.abteilung ? ` (${x.abteilung})` : "") })));
   $("#u-fuer-feld").hidden = !team.length;
+  // Krank eintragen nur, wer fuer andere eintragen darf (Leitung, Freigeber, Admin).
+  const krankWahl = $("#u-art option[value=krank]");
+  if (team.length && !krankWahl) $("#u-art").append(element("option", { value: "krank", text: "🤒 Krank (nur für andere)" }));
+  if (!team.length && krankWahl) krankWahl.remove();
   $("#u-fuer-hinweis").textContent = freigeber() ? "Für (du bist Freigeber – dann gleich genehmigt)" : "Für (wartet dann auf die Freigabe)";
   ansichtWaehlen(ansicht);
 }
@@ -150,8 +156,9 @@ function monatZeichnen() {
   for (let tag = 1; tag <= tage; tag++) {
     const iso = isoTag(new Date(monat.getFullYear(), monat.getMonth(), tag));
     const { termine: tt, weg } = amTag(iso);
-    const genehmigt = weg.filter((a) => a.status === "genehmigt").length;
-    const offen = weg.length - genehmigt;
+    const krank = weg.filter((a) => a.art === "krank").length;
+    const genehmigt = weg.filter((a) => a.status === "genehmigt").length - krank;
+    const offen = weg.length - genehmigt - krank;
     const wochenende = [5, 6].includes((versatz + tag - 1) % 7);
     zellen.push(element("button", {
       klasse: "kal-tag" + (iso === heute ? " heute" : "") + (iso === gewaehlterTag ? " gewaehlt" : "") + (wochenende ? " we" : ""),
@@ -161,7 +168,8 @@ function monatZeichnen() {
     element("span", { klasse: "kal-marken" },
       tt.length ? element("span", { klasse: "marke-termin", text: `${tt.length}` }) : null,
       genehmigt ? element("span", { klasse: "marke-weg", text: `🌴${genehmigt}` }) : null,
-      offen ? element("span", { klasse: "marke-weg", title: "beantragt", text: `⏳${offen}` }) : null),
+      offen ? element("span", { klasse: "marke-weg", title: "beantragt", text: `⏳${offen}` }) : null,
+      krank ? element("span", { klasse: "marke-weg", title: "krank", text: `🤒${krank}` }) : null),
     kalTexte(tt, weg)));
   }
   $("#kalender").replaceChildren(...zellen);
@@ -172,7 +180,7 @@ const KAL_ZEILEN = 4;
 function kalTexte(tt, weg) {
   const zeilen = [
     ...tt.filter((t) => !t.abgesagt_am).map((t) => ({ k: "t", text: (t.ganztags ? "" : uhrzeit(t.beginn) + " ") + t.titel })),
-    ...weg.map((a) => ({ k: "w", text: `${a.status === "beantragt" ? "⏳" : "🌴"} ${namen.get(a.profil_id) || "?"}`, abt: abtVon.get(a.profil_id) })),
+    ...weg.map((a) => ({ k: "w", text: `${zeichen(a)} ${namen.get(a.profil_id) || "?"}`, abt: abtVon.get(a.profil_id) })),
   ];
   const sichtbar = zeilen.slice(0, zeilen.length > KAL_ZEILEN ? KAL_ZEILEN - 1 : KAL_ZEILEN);
   const rest = zeilen.length - sichtbar.length;
@@ -194,7 +202,7 @@ function tagZeigen(iso) {
       ))),
     ...weg.map((a) => element("li", { klasse: "tag-eintrag" },
       element("div", { klasse: "eintrag-knopf ruhig" },
-        element("strong", { text: `${a.status === "beantragt" ? "⏳" : "🌴"} ${namen.get(a.profil_id) || "?"}` }),
+        element("strong", { text: `${zeichen(a)} ${namen.get(a.profil_id) || "?"}` }),
         element("span", {}, abtVon.get(a.profil_id) ? abteilungsChip(abtVon.get(a.profil_id)) : null,
           element("span", { klasse: "leise", text: ` ${ARTEN[a.art]}${a.halbtags ? " · " + a.halbtags : ""}${a.status === "beantragt" ? " · beantragt" : ""}` })),
       ))),
@@ -298,6 +306,8 @@ async function urlaubBeantragen() {
   const von = $("#u-von").value;
   const bis = $("#u-bis").value;
   if (!von || !bis) return meldung("#urlaub-meldung", "Bitte Anfang und Ende wählen.");
+  const krank = $("#u-art").value === "krank";
+  if (krank && !$("#u-fuer").value) return meldung("#urlaub-meldung", "Krank trägst du für jemand anderen ein – bitte bei „Für“ die Person wählen.");
   const fuer = $("#u-fuer").value || ich.id;
   const { data: dazu } = await db.from("abwesenheiten").select("profil_id, von, bis")
     .eq("status", "genehmigt").lte("von", bis).gte("bis", von);
@@ -313,7 +323,8 @@ async function urlaubBeantragen() {
   if (error) return meldung("#urlaub-meldung", error.message);
   const fuerJemand = $("#u-fuer").value;
   meldung("#urlaub-meldung",
-    !fuerJemand ? "Beantragt. Du siehst hier, sobald entschieden ist."
+    krank ? "Krankmeldung eingetragen. Sehen können sie nur Leitung und Chefs."
+      : !fuerJemand ? "Beantragt. Du siehst hier, sobald entschieden ist."
       : freigeber() ? "Eingetragen und genehmigt."
       : "Eingetragen. Es wartet jetzt auf die Freigabe.", "hinweis");
   $("#u-bemerkung").value = "";
@@ -392,9 +403,10 @@ async function belegungZeichnen() {
       zeilen.push(element("tr", {}, element("th", { klasse: "name person-name", text: p.name }), ...tage.map((t) => {
         const a = eigene.find((x) => x.von <= t && x.bis >= t);
         if (!a) return element("td", { klasse: tagKlasse(t).trim() });
-        return eingefaerbt(element("td", { klasse: "weg" + (a.status === "beantragt" ? " offen" : "") + tagKlasse(t),
-          title: `${p.name}: ${a.status === "beantragt" ? "beantragt" : "genehmigt"}${a.halbtags ? " (" + a.halbtags + ")" : ""}`,
-          text: a.halbtags ? "½" : "" }), abt);
+        const krank = a.art === "krank";
+        return eingefaerbt(element("td", { klasse: "weg" + (a.status === "beantragt" ? " offen" : "") + (krank ? " krank" : "") + tagKlasse(t),
+          title: `${p.name}: ${krank ? "krank" : a.status === "beantragt" ? "beantragt" : ARTEN[a.art]}${a.halbtags ? " (" + a.halbtags + ")" : ""}`,
+          text: krank ? "K" : a.halbtags ? "½" : "" }), abt);
       })));
     }
   }
