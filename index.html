@@ -12,7 +12,7 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="icon" href="icons/icon-192.png">
 <title>Info-App</title>
-<link rel="stylesheet" href="css/app.css?v=20">
+<link rel="stylesheet" href="css/app.css?v=21">
 </head>
 <body>
 
@@ -257,6 +257,9 @@
         <select id="chat-haltbarkeit"><option value="">dauerhaft</option><option value="1">1 Tag</option><option value="7">1 Woche</option><option value="30">1 Monat</option></select>
       </label>
       <label class="haken"><input type="checkbox" id="chat-wichtig"><span>❗ Wichtig</span></label>
+      <label class="klein">Bestätigung
+        <select id="chat-bestaetigen"><option value="">keine</option><option value="zahl">📌 Bitte bestätigen</option><option value="namen">📌 Unterweisung (mit Namen)</option></select>
+      </label>
     </div>
     <div class="chat-schreiben">
       <textarea id="chat-text" rows="1" maxlength="4000" placeholder="Nachricht" aria-label="Nachricht"></textarea>
@@ -454,6 +457,6 @@
 
 <script src="lib/supabase.min.js?v=2.45.4"></script>
 <script src="lib/qrcode.js?v=2.0.4"></script>
-<script type="module" src="js/app.js?v=32"></script>
+<script type="module" src="js/app.js?v=33"></script>
 </body>
 </html>

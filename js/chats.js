@@ -5,13 +5,17 @@
 // Gelesen: im Einzelchat Haken, in Gruppen eine Zahl erst ab 3 Empfaengern
 // (chat_gelesen_zahlen liefert nur Zahlen je eigener Nachricht, sonst nichts).
 // Als gelesen gilt nur, was wirklich auf dem Bildschirm steht.
-import { $, abteilungsChip, db, element, knopfBeschaeftigt, meldung, zeige, zeigeZwei } from "./gemeinsam.js?v=32";
-import { chatMelden } from "./hinweise.js?v=32";
+import { $, abteilungsChip, db, element, funktion, knopfBeschaeftigt, meldung, zeige, zeigeZwei } from "./gemeinsam.js?v=33";
+import { chatMelden } from "./hinweise.js?v=33";
 
 const NACHSEHEN_MS = 20000;
 const SEITE = 100;
 // Nur die freigegebenen Spalten - "*" schliesst gemeldet_am ein, und dann lehnt die Datenbank die ganze Abfrage ab.
-const SPALTEN = "id, unterhaltung_id, autor_id, text, wichtig, ablauf_am, erstellt_am, bearbeitet_am, geloescht_am";
+const SPALTEN = "id, unterhaltung_id, autor_id, text, wichtig, ablauf_am, erstellt_am, bearbeitet_am, geloescht_am, bestaetigen";
+// "Bitte bestaetigen": eigene Bestaetigungen (ids) und der Stand je eigener Nachricht
+// (Absender und Admin; Namen der Offenen nur bei Unterweisungen - entscheidet die Datenbank).
+let bestaetigt = new Set();
+let bestaetigtStand = new Map();
 const breit = window.matchMedia("(min-width: 1024px)");
 
 let ich = null;
@@ -157,8 +161,64 @@ async function nachrichtenLaden() {
   alleGeladen = alleGeladen || n.data.length < Math.max(SEITE, nachrichten.length);
   nachrichten = n.data.reverse();
   gelesenZahlen = new Map((l.data || []).map((x) => [x.nachricht_id, x]));
+  await bestaetigungenLaden(id);
+  if (offen?.id !== id) return;
   verlaufZeichnen();
   if (chatSichtbar()) gelesen();
+}
+
+async function bestaetigungenLaden(chat) {
+  const mit = nachrichten.filter((n) => n.bestaetigen && !n.geloescht_am);
+  if (!mit.length) { bestaetigt = new Set(); bestaetigtStand = new Map(); return; }
+  const eigene = mit.filter((n) => n.autor_id === ich.id || ich.rolle === "admin");
+  const [b, ...staende] = await Promise.all([
+    db.from("bestaetigungen").select("nachricht_id").in("nachricht_id", mit.map((n) => n.id)),
+    ...eigene.map((n) => db.rpc("bestaetigung_stand", { nachricht: n.id })),
+  ]);
+  if (offen?.id !== chat) return;
+  bestaetigt = new Set((b.data || []).map((x) => x.nachricht_id));
+  bestaetigtStand = new Map(eigene.map((n, i) => [n.id, staende[i].data?.[0]]).filter(([, s]) => s));
+}
+
+// Unter einer Nachricht mit "Bitte bestaetigen": Empfaenger bestaetigen, der Absender sieht den Stand.
+function bestaetigenTeil(n) {
+  if (!n.bestaetigen || n.geloescht_am) return null;
+  const teil = element("div", { klasse: "blase-bestaetigen" });
+  teil.addEventListener("click", (e) => e.stopPropagation()); // nicht die eigene Blase "loeschen"
+  if (n.autor_id !== ich.id) {
+    teil.append(bestaetigt.has(n.id)
+      ? element("span", { klasse: "bestaetigt", text: "✓ Von dir bestätigt" })
+      : element("button", { klasse: "haupt klein-knopf", text: "✓ Gelesen und verstanden", onclick: (e) => bestaetigen(n, e.currentTarget) }));
+  }
+  const s = bestaetigtStand.get(n.id);
+  if (s) {
+    const offenZahl = s.empfaenger - s.bestaetigt;
+    teil.append(element("span", { klasse: "klein", text: `📌 bestätigt ${s.bestaetigt}/${s.empfaenger}` }));
+    if (offenZahl > 0) teil.append(element("button", { klasse: "neben klein-knopf", text: "🔔 Erinnern", onclick: (e) => erinnern(n, e.currentTarget) }));
+    if (s.offen?.length) {
+      teil.append(element("details", { klasse: "offen-namen" },
+        element("summary", { klasse: "klein", text: `Noch offen (${s.offen.length})` }),
+        element("p", { klasse: "klein", text: s.offen.join(", ") })));
+    }
+  }
+  return teil;
+}
+
+async function bestaetigen(n, knopf) {
+  knopfBeschaeftigt(knopf, true);
+  const { error } = await db.rpc("nachricht_bestaetigen", { nachricht: n.id });
+  knopfBeschaeftigt(knopf, false);
+  if (error) return meldung("#chat-meldung", "Bestätigen ging nicht: " + error.message);
+  bestaetigt.add(n.id);
+  verlaufZeichnen(false);
+}
+
+async function erinnern(n, knopf) {
+  knopfBeschaeftigt(knopf, true);
+  const r = await funktion("wiki-push", { aktion: "erinnern", nachricht_id: n.id });
+  knopfBeschaeftigt(knopf, false);
+  meldung("#chat-meldung", r.status !== 200 ? "Erinnern ging nicht: " + (r.daten.fehler || "Fehler")
+    : r.daten.hinweis || `🔔 Erinnerung an ${r.daten.gesendet} Gerät${r.daten.gesendet === 1 ? "" : "e"} gesendet.`, r.status === 200 ? "hinweis" : "fehler");
 }
 
 async function aeltereLaden() {
@@ -204,7 +264,8 @@ function blase(n) {
     !meine && offen.art !== "einzel" ? element("span", { klasse: "blase-autor", text: namen.get(n.autor_id) || "Ehemalig" }) : null,
     n.wichtig && !geloescht ? element("span", { klasse: "blase-wichtig", text: "❗ Wichtig" }) : null,
     element("p", { klasse: "blase-text", text: geloescht ? "🚫 Nachricht gelöscht" : n.text }),
-    element("span", { klasse: "blase-meta", text: meta }));
+    element("span", { klasse: "blase-meta", text: meta }),
+    bestaetigenTeil(n));
   if (meine && !geloescht) {
     b.title = "Antippen zum Löschen";
     b.addEventListener("click", () => loeschen(n));
@@ -235,6 +296,7 @@ async function senden() {
   const zeile = { unterhaltung_id: chat, text };
   if (offen.art === "ankuendigung") {
     zeile.wichtig = $("#chat-wichtig").checked;
+    if ($("#chat-bestaetigen").value) zeile.bestaetigen = $("#chat-bestaetigen").value;
     if (tage) zeile.ablauf_am = new Date(Date.now() + Number(tage) * 86400e3).toISOString();
   }
   const { data, error } = await db.from("nachrichten").insert(zeile).select(SPALTEN).single();
@@ -248,6 +310,7 @@ async function senden() {
   }
   meldung("#chat-meldung", "");
   $("#chat-wichtig").checked = false;
+  $("#chat-bestaetigen").value = "";
   if (offen?.id === chat && !nachrichten.some((x) => x.id === data.id)) nachrichten.push(data);
   if (offen?.id === chat) verlaufZeichnen();
   chatMelden(data.id); // Push an die anderen - im Hintergrund, Fehler stoeren das Senden nicht

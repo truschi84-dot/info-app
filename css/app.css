@@ -476,3 +476,9 @@ body.mit-leiste { padding-bottom: calc(80px + env(safe-area-inset-bottom)); }
 .heute-wichtig strong { color: var(--rot); }
 .heute-hervor .heute-zeile { background: var(--akzent-hell); border-radius: 10px; }
 #start-datum { color: var(--text); font-weight: 600; }
+
+/* Bitte bestaetigen */
+.blase-bestaetigen { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--rand); cursor: default; }
+.blase-bestaetigen .bestaetigt { font-size: 13px; font-weight: 600; color: var(--akzent); }
+.offen-namen { width: 100%; }
+.offen-namen p { margin: 4px 0 0; }
