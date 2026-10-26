@@ -5,7 +5,7 @@
 // in "termine" - die Zugriffsregeln entscheiden, wer was darf.
 import {
   $, abteilungsChip, db, eingefaerbt, element, farbenLaden, hoechstzahl, knopfBeschaeftigt, meldung, zeige,
-} from "./gemeinsam.js?v=27";
+} from "./gemeinsam.js?v=28";
 
 const ARTEN = { urlaub: "Urlaub", schule: "Schule / Fortbildung", sonstiges: "Sonstiges", krank: "Krank" };
 // Zeichen je Abwesenheit. "Krank" sehen nur Leitung, Freigeber und Admin (Datenbank-Regel).
@@ -365,7 +365,7 @@ async function belegungZeichnen() {
   const start = isoTag(monat);
   const ende = isoTag(new Date(monat.getFullYear(), monat.getMonth() + 1, 0));
   $("#ueb-monat").textContent = `${MONATE[monat.getMonth()]} ${monat.getFullYear()}`;
-  const { data, error } = await db.from("abwesenheiten").select("profil_id, von, bis, halbtags, status")
+  const { data, error } = await db.from("abwesenheiten").select("profil_id, art, von, bis, halbtags, status")
     .lte("von", ende).gte("bis", start).in("status", ["genehmigt", "beantragt"]);
   if (error) return meldung("#planer-meldung", "Übersicht konnte nicht laden: " + error.message);
 
