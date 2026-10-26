@@ -482,3 +482,22 @@ body.mit-leiste { padding-bottom: calc(80px + env(safe-area-inset-bottom)); }
 .blase-bestaetigen .bestaetigt { font-size: 13px; font-weight: 600; color: var(--akzent); }
 .offen-namen { width: 100%; }
 .offen-namen p { margin: 4px 0 0; }
+
+/* Aufgaben */
+@media (max-width: 1023px) { .leiste { grid-template-columns: repeat(6, 1fr); } }
+@media (max-width: 400px) { .leiste button { font-size: 11px; } .leiste button span { font-size: 20px; } }
+.aufgaben-liste { display: grid; gap: 10px; }
+.aufgabe { border: 1px solid var(--rand); border-radius: 14px; padding: 8px 10px; }
+.aufgabe.fertig { opacity: .65; }
+.aufgabe.ueberfaellig { border-color: var(--rot); }
+.aufgabe-kopf { display: flex; align-items: center; gap: 10px; }
+.aufgabe-titel { flex: 1; min-width: 0; display: grid; text-align: left; padding: 4px; background: transparent; color: var(--text); border: 0; font-weight: 400; }
+.aufgabe-titel .leise { font-size: 14px; }
+.aufgabe-titel .ueberfaellig { color: var(--rot); }
+.aufgabe-haken input { width: 26px; height: 26px; accent-color: var(--akzent); }
+.aufgabe-fortschritt { flex: 0 0 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; border: 2px solid var(--akzent); color: var(--akzent); font-size: 12px; font-weight: 700; }
+.aufgabe-fortschritt.fertig { background: var(--akzent); color: var(--akzent-text); }
+.aufgabe-inhalt { padding: 4px 4px 4px 44px; }
+.aufgabe-schritte { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.aufgabe-schritte li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.aufgabe-schritte li .klein { flex-basis: 100%; padding-left: 36px; }

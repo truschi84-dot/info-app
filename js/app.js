@@ -3,17 +3,18 @@
 //   gueltige Sitzung          -> Start
 //   Geraet eingerichtet       -> PIN
 //   sonst                     -> Einladung
-import { $, db, farbenLaden, geraetLesen, zeige } from "./gemeinsam.js?v=33";
-import { UMGEBUNG } from "./konfig.js?v=33";
-import { anmeldungEinrichten, codeAus, zeigeEinladung, zeigePin } from "./anmelden.js?v=33";
-import { adminEinrichten, zeigeAdmin } from "./admin.js?v=33";
-import { eintragOeffnen, nachschlagenEinrichten, zeigeNachschlagen } from "./nachschlagen.js?v=33";
-import { neuigkeiten, pushAusschalten, pushEinschalten, pushStatus, swRegistrieren } from "./hinweise.js?v=33";
-import { gruppenEinrichten, zeigeGruppen } from "./gruppen.js?v=33";
-import { planerEinrichten, zeigePlaner } from "./planer.js?v=33";
-import { notizenEinrichten, zeigeNotizen } from "./notizen.js?v=33";
-import { chatOeffnen, chatsEinrichten, chatsUngelesen, zeigeChats } from "./chats.js?v=33";
-import { begruessung, heuteZeigen } from "./heute.js?v=33";
+import { $, db, farbenLaden, geraetLesen, zeige } from "./gemeinsam.js?v=37";
+import { UMGEBUNG } from "./konfig.js?v=37";
+import { anmeldungEinrichten, codeAus, zeigeEinladung, zeigePin } from "./anmelden.js?v=37";
+import { adminEinrichten, zeigeAdmin } from "./admin.js?v=37";
+import { eintragOeffnen, nachschlagenEinrichten, zeigeNachschlagen } from "./nachschlagen.js?v=37";
+import { neuigkeiten, pushAusschalten, pushEinschalten, pushStatus, swRegistrieren } from "./hinweise.js?v=37";
+import { gruppenEinrichten, zeigeGruppen } from "./gruppen.js?v=37";
+import { planerEinrichten, zeigePlaner } from "./planer.js?v=37";
+import { notizenEinrichten, zeigeNotizen } from "./notizen.js?v=37";
+import { chatOeffnen, chatsEinrichten, chatsUngelesen, zeigeChats } from "./chats.js?v=37";
+import { begruessung, heuteZeigen } from "./heute.js?v=37";
+import { aufgabenEinrichten, aufgabenHeute, zeigeAufgaben } from "./aufgaben.js?v=37";
 
 let ich = null;
 let offenerLink = null; // { art, id } aus einer Push-Nachricht, wird nach der Anmeldung geoeffnet
@@ -59,11 +60,14 @@ async function zeigeStart() {
     eintrag: (id) => eintragOeffnen(ich, id),
     nachschlagen: () => zeigeNachschlagen(ich),
     planer: (reiter) => zeigePlaner(ich, reiter),
+    aufgaben: () => zeigeAufgaben(ich),
   });
 }
 
 async function hinweiseZeigen() {
-  const [neu, ungelesen] = await Promise.all([neuigkeiten(), chatsUngelesen()]);
+  const [neu, ungelesen, aufgaben] = await Promise.all([neuigkeiten(), chatsUngelesen(), aufgabenHeute(ich.id)]);
+  $("#aufgaben-zahl").textContent = String(aufgaben.length);
+  $("#aufgaben-zahl").hidden = !aufgaben.length;
   $("#wiki-neu-zahl").textContent = String(neu.length);
   $("#wiki-neu-zahl").hidden = !neu.length;
   $("#chats-zahl").textContent = String(ungelesen);
@@ -118,6 +122,7 @@ async function start() {
   planerEinrichten(zeigeStart);
   notizenEinrichten(zeigeStart);
   chatsEinrichten(zeigeStart);
+  aufgabenEinrichten(zeigeStart);
 
   // Nur dieses Geraet abmelden ("local"). Ohne Angabe beendet Supabase alle
   // Sitzungen der Person - dann waere auch das Handy draussen, wenn man am PC
@@ -132,6 +137,7 @@ async function start() {
   $("#zum-planer").addEventListener("click", () => zeigePlaner(ich));
   $("#zu-notizen").addEventListener("click", () => zeigeNotizen());
   $("#zu-heute").addEventListener("click", () => zeigeStart());
+  $("#zu-aufgaben").addEventListener("click", () => zeigeAufgaben(ich));
   $("#zu-chats").addEventListener("click", () => zeigeChats(ich));
   $("#push-knopf").addEventListener("click", pushUmschalten);
 

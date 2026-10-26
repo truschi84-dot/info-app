@@ -5,7 +5,7 @@
 import {
   $, FARBEN, abteilungsChip, abteilungsFarbe, datumZeit, db, element, farbenLaden, funktion, geraetLesen, haken,
   knopfBeschaeftigt, meldung, zeige,
-} from "./gemeinsam.js?v=33";
+} from "./gemeinsam.js?v=37";
 
 const PIN_SPERRE_AB = 5;
 let ich = null;

@@ -3,18 +3,19 @@
 // Antraege (Freigeber), Neues im Wiki. Jede Zeile fuehrt direkt dorthin.
 // Gelesen wird nur, was die Datenbank-Regeln erlauben (z. B. "krank" nur fuer
 // Leitung und Chefs) - hier wird nichts zusaetzlich gefiltert, nur eingegrenzt.
-import { $, abteilungsChip, db, element } from "./gemeinsam.js?v=33";
-import { neuigkeiten } from "./hinweise.js?v=33";
+import { $, abteilungsChip, db, element } from "./gemeinsam.js?v=37";
+import { neuigkeiten } from "./hinweise.js?v=37";
+import { aufgabenHeute } from "./aufgaben.js?v=37";
 
 const TAG = 86400e3;
 
-// ziele: { chat(id), chats(), eintrag(id), nachschlagen(), planer(reiter) }
+// ziele: { chat(id), chats(), eintrag(id), nachschlagen(), planer(reiter), aufgaben() }
 export async function heuteZeigen(ich, ziele) {
   const jetzt = new Date();
   const heute = isoTag(jetzt);
   const tagStart = new Date(jetzt.getFullYear(), jetzt.getMonth(), jetzt.getDate());
   const freigeber = ich.rolle === "admin" || ich.darf_freigeben;
-  const [c, w, t, a, l, p, n, offen, best] = await Promise.all([
+  const [c, w, t, a, l, p, n, offen, best, auf] = await Promise.all([
     db.rpc("meine_chats"),
     db.from("nachrichten").select("id, unterhaltung_id, autor_id, text, erstellt_am").eq("wichtig", true).is("geloescht_am", null)
       .gte("erstellt_am", new Date(Date.now() - 7 * TAG).toISOString()).order("erstellt_am", { ascending: false }).limit(3),
@@ -26,6 +27,7 @@ export async function heuteZeigen(ich, ziele) {
     neuigkeiten(),
     freigeber ? db.from("abwesenheiten").select("id", { count: "exact", head: true }).eq("status", "beantragt") : Promise.resolve({ count: 0 }),
     db.rpc("meine_offenen_bestaetigungen"),
+    aufgabenHeute(ich.id),
   ]);
   const chats = c.data || [];
   const namen = new Map((p.data || []).map((x) => [x.id, x.name]));
@@ -42,6 +44,10 @@ export async function heuteZeigen(ich, ziele) {
     zuBestaetigen.length ? karte(`📌 Bitte bestätigen (${zuBestaetigen.length})`, zuBestaetigen.slice(0, 4).map((m) => zeile(
       () => ziele.chat(m.unterhaltung_id), m.text, `${namen.get(m.autor_id) || "?"} · ${chatName(m.unterhaltung_id)} · ${wann(m.erstellt_am)}`, "hervor"))) : null,
     karte("💬 Ungelesen", ungelesenListe(chats, ziele), "Alles gelesen ✓", ["Chats öffnen", ziele.chats]),
+    karte(`☑️ Aufgaben heute${auf.length ? ` (${auf.length})` : ""}`, auf.slice(0, 4).map((x) => zeile(ziele.aufgaben, x.titel,
+      [chatName(x.unterhaltung_id), x.zustaendig_id === ich.id ? "👤 dir zugeteilt" : null, !x.wiederholung && x.faellig && x.faellig < heute ? "⚠ überfällig" : null,
+        x.schritte.length ? `${x.schritte.length} Punkte` : null].filter(Boolean).join(" · "))),
+      "Für heute alles erledigt 👍", ["Alle Aufgaben", ziele.aufgaben]),
     (w.data || []).length ? karte("❗ Wichtig", (w.data || []).map((m) => zeile(
       () => ziele.chat(m.unterhaltung_id), m.text, `${namen.get(m.autor_id) || "?"} · ${chatName(m.unterhaltung_id)} · ${wann(m.erstellt_am)}`, "wichtig"))) : null,
     karte("📅 Termine heute und morgen", (t.data || []).map((x) => zeile(() => ziele.planer("kalender"), x.titel,

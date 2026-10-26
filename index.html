@@ -12,7 +12,7 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="icon" href="icons/icon-192.png">
 <title>Info-App</title>
-<link rel="stylesheet" href="css/app.css?v=21">
+<link rel="stylesheet" href="css/app.css?v=23">
 </head>
 <body>
 
@@ -268,6 +268,45 @@
   </form>
 </main>
 
+<!-- Aufgaben und Checklisten -->
+<main class="karte breit" data-bildschirm="aufgaben" hidden>
+  <div class="kopf">
+    <div>
+      <h1>Aufgaben</h1>
+      <p class="unter">Checklisten und Aufgaben je Gruppe – auch wiederkehrend.</p>
+    </div>
+    <button id="aufgaben-zurueck" class="neben klein-knopf">Zurück</button>
+  </div>
+  <div class="zeile-kopf">
+    <div id="aufgaben-filter" class="chips"></div>
+    <button id="aufgabe-neu" class="neben klein-knopf" hidden>＋ Neue Aufgabe</button>
+  </div>
+  <form id="aufgabe-form" class="anlegen" novalidate hidden>
+    <h2 id="aufgabe-form-titel">Neue Aufgabe</h2>
+    <label class="feld"><span>Titel *</span><input id="a-titel" maxlength="120" placeholder="z. B. Hallenschluss"></label>
+    <div class="zeile">
+      <label class="feld"><span>Gruppe</span><select id="a-gruppe"></select></label>
+      <label class="feld"><span>Zuständig</span><select id="a-zustaendig"></select></label>
+    </div>
+    <div class="zeile">
+      <label class="feld"><span>Wiederholung</span>
+        <select id="a-wiederholung"><option value="">einmalig</option><option value="taeglich">täglich</option><option value="werktags">werktags (Mo–Fr)</option><option value="woechentlich">wöchentlich</option><option value="monatlich">monatlich</option></select>
+      </label>
+      <label class="feld"><span id="a-faellig-text">Fällig am (freiwillig)</span><input id="a-faellig" type="date"></label>
+    </div>
+    <label class="feld"><span>Checkliste (ein Punkt pro Zeile, freiwillig)</span><textarea id="a-schritte" rows="4" placeholder="Tore zu&#10;Licht aus&#10;Alarm scharf"></textarea></label>
+    <label class="feld"><span>Beschreibung (freiwillig)</span><textarea id="a-beschreibung" rows="2" maxlength="2000"></textarea></label>
+    <div class="knoepfe">
+      <button id="aufgabe-speichern" class="haupt" type="submit">Speichern</button>
+      <button id="aufgabe-abbrechen" class="neben" type="button">Abbrechen</button>
+      <button id="aufgabe-archivieren" class="gefahr" type="button" hidden>Archivieren</button>
+    </div>
+    <p id="aufgabe-meldung" class="meldung" hidden></p>
+  </form>
+  <p id="aufgaben-meldung" class="meldung" hidden></p>
+  <div id="aufgaben-liste" class="aufgaben-liste"></div>
+</main>
+
 <!-- Notizen: Liste -->
 <main class="karte breit" data-bildschirm="notizen" hidden>
   <div class="kopf">
@@ -451,12 +490,13 @@
   <button id="zu-heute"><span aria-hidden="true">🏠</span>Heute</button>
   <button id="zu-chats"><span aria-hidden="true">💬</span>Chats<em id="chats-zahl" class="neu-zahl" hidden></em></button>
   <button id="zum-planer"><span aria-hidden="true">📅</span>Planer</button>
+  <button id="zu-aufgaben"><span aria-hidden="true">☑️</span>Aufgaben<em id="aufgaben-zahl" class="neu-zahl" hidden></em></button>
   <button id="zum-nachschlagen"><span aria-hidden="true">📖</span>Wissen<em id="wiki-neu-zahl" class="neu-zahl" hidden></em></button>
   <button id="zu-notizen"><span aria-hidden="true">📝</span>Notizen</button>
 </nav>
 
 <script src="lib/supabase.min.js?v=2.45.4"></script>
 <script src="lib/qrcode.js?v=2.0.4"></script>
-<script type="module" src="js/app.js?v=33"></script>
+<script type="module" src="js/app.js?v=37"></script>
 </body>
 </html>
