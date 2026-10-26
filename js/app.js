@@ -3,22 +3,28 @@
 //   gueltige Sitzung          -> Start
 //   Geraet eingerichtet       -> PIN
 //   sonst                     -> Einladung
-import { $, db, farbenLaden, geraetLesen, zeige } from "./gemeinsam.js?v=22";
-import { UMGEBUNG } from "./konfig.js?v=22";
-import { anmeldungEinrichten, codeAus, zeigeEinladung, zeigePin } from "./anmelden.js?v=22";
-import { adminEinrichten, zeigeAdmin } from "./admin.js?v=22";
-import { eintragOeffnen, nachschlagenEinrichten, zeigeNachschlagen } from "./nachschlagen.js?v=22";
-import { neuigkeiten, pushAusschalten, pushEinschalten, pushStatus, swRegistrieren } from "./hinweise.js?v=22";
-import { gruppenEinrichten, zeigeGruppen } from "./gruppen.js?v=22";
-import { planerEinrichten, zeigePlaner } from "./planer.js?v=22";
+import { $, db, farbenLaden, geraetLesen, zeige } from "./gemeinsam.js?v=25";
+import { UMGEBUNG } from "./konfig.js?v=25";
+import { anmeldungEinrichten, codeAus, zeigeEinladung, zeigePin } from "./anmelden.js?v=25";
+import { adminEinrichten, zeigeAdmin } from "./admin.js?v=25";
+import { eintragOeffnen, nachschlagenEinrichten, zeigeNachschlagen } from "./nachschlagen.js?v=25";
+import { neuigkeiten, pushAusschalten, pushEinschalten, pushStatus, swRegistrieren } from "./hinweise.js?v=25";
+import { gruppenEinrichten, zeigeGruppen } from "./gruppen.js?v=25";
+import { planerEinrichten, zeigePlaner } from "./planer.js?v=25";
+import { notizenEinrichten, zeigeNotizen } from "./notizen.js?v=25";
+import { chatOeffnen, chatsEinrichten, chatsUngelesen, zeigeChats } from "./chats.js?v=25";
 
 let ich = null;
-let offenerLink = null; // Eintrag aus einer Push-Nachricht, der nach der Anmeldung geoeffnet wird
+let offenerLink = null; // { art, id } aus einer Push-Nachricht, wird nach der Anmeldung geoeffnet
 
-// "#eintrag=<id>" aus der Adresse nehmen (kommt aus einer Push-Nachricht).
-function eintragAusAdresse(url) {
-  const m = /[#&]eintrag=([0-9a-f-]{36})/i.exec(url);
-  return m ? m[1] : null;
+// "#eintrag=<id>" oder "#chat=<id>" aus der Adresse nehmen (kommt aus einer Push-Nachricht).
+function linkAusAdresse(url) {
+  const m = /[#&](eintrag|chat)=([0-9a-f-]{36})/i.exec(url);
+  return m ? { art: m[1], id: m[2] } : null;
+}
+
+function linkOeffnen(link) {
+  return link.art === "chat" ? chatOeffnen(ich, link.id) : eintragOeffnen(ich, link.id);
 }
 
 // Wer bin ich? Liefert nur etwas, wenn Person aktiv und dieses Geraet nicht
@@ -39,23 +45,25 @@ async function zeigeStart() {
   $("#admin-knoepfe").hidden = ich.rolle !== "admin";
   zeige("start");
   if (offenerLink) {
-    const id = offenerLink;
+    const link = offenerLink;
     offenerLink = null;
-    return eintragOeffnen(ich, id);
+    return linkOeffnen(link);
   }
   hinweiseZeigen();
 }
 
 async function hinweiseZeigen() {
-  const neu = await neuigkeiten();
+  const [neu, ungelesen] = await Promise.all([neuigkeiten(), chatsUngelesen()]);
   $("#wiki-neu-zahl").textContent = `${neu.length} neu`;
   $("#wiki-neu-zahl").hidden = !neu.length;
+  $("#chats-zahl").textContent = String(ungelesen);
+  $("#chats-zahl").hidden = !ungelesen;
   pushAnzeigen();
 }
 
 const PUSH_TEXT = {
   an: "🔔 Push-Nachrichten sind auf diesem Gerät an.",
-  aus: "🔕 Push-Nachrichten bei Neuem im Wiki sind auf diesem Gerät aus.",
+  aus: "🔕 Push-Nachrichten (Chats, Neues im Wiki) sind auf diesem Gerät aus.",
   gesperrt: "🔕 Benachrichtigungen sind im Browser verboten. Freigeben geht in den Einstellungen des Browsers bzw. am iPhone unter Einstellungen → Mitteilungen → Info-App.",
   homebildschirm: "🔕 Push geht am iPhone nur, wenn du die App über „Teilen → Zum Home-Bildschirm“ hinzufügst und von dort öffnest.",
   geht_nicht: "🔕 Dieser Browser kann keine Push-Nachrichten.",
@@ -98,6 +106,8 @@ async function start() {
   nachschlagenEinrichten(zeigeStart);
   gruppenEinrichten(zeigeStart);
   planerEinrichten(zeigeStart);
+  notizenEinrichten(zeigeStart);
+  chatsEinrichten(zeigeStart);
 
   // Nur dieses Geraet abmelden ("local"). Ohne Angabe beendet Supabase alle
   // Sitzungen der Person - dann waere auch das Handy draussen, wenn man am PC
@@ -110,17 +120,19 @@ async function start() {
   $("#zu-gruppen").addEventListener("click", () => zeigeGruppen());
   $("#zum-nachschlagen").addEventListener("click", () => zeigeNachschlagen(ich));
   $("#zum-planer").addEventListener("click", () => zeigePlaner(ich));
+  $("#zu-notizen").addEventListener("click", () => zeigeNotizen());
+  $("#zu-chats").addEventListener("click", () => zeigeChats(ich));
   $("#push-knopf").addEventListener("click", pushUmschalten);
 
   swRegistrieren();
   // Push-Nachricht angetippt, waehrend die App schon offen ist.
   navigator.serviceWorker?.addEventListener("message", (e) => {
-    const id = e.data?.art === "oeffnen" ? eintragAusAdresse(e.data.url) : null;
-    if (!id) return;
-    if (ich) eintragOeffnen(ich, id);
-    else offenerLink = id;
+    const link = e.data?.art === "oeffnen" ? linkAusAdresse(e.data.url) : null;
+    if (!link) return;
+    if (ich) linkOeffnen(link);
+    else offenerLink = link;
   });
-  offenerLink = eintragAusAdresse(location.hash);
+  offenerLink = linkAusAdresse(location.hash);
   if (offenerLink) history.replaceState(null, "", location.pathname + location.search);
 
   // Einladung aus dem QR-Code: Code aus der Adresse nehmen und dort loeschen.

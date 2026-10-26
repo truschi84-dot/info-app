@@ -379,3 +379,53 @@ button.laedt::after { content: " …"; }
 .marke-geaendert { font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--akzent); color: var(--akzent-text); font-weight: 700; }
 .push-bereich { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 14px 0 0; padding: 10px 12px; border: 1px dashed var(--rand); border-radius: 12px; }
 .push-bereich p { margin: 0; flex: 1 1 200px; }
+
+/* Notizen */
+.notiz-titel { width: 100%; margin: 4px 0 8px; padding: 8px 2px; font: inherit; font-size: 22px; font-weight: 700;
+  color: var(--text); background: transparent; border: 0; border-bottom: 1px solid var(--rand); }
+.notiz-titel:focus, .notiz-text:focus { outline: none; border-color: var(--akzent); }
+.notiz-text { width: 100%; min-height: 55vh; padding: 10px 2px; font: inherit; line-height: 1.55; color: var(--text);
+  background: transparent; border: 0; resize: vertical; }
+[data-bildschirm="notiz"] .knoepfe { justify-content: space-between; align-items: center; border-top: 1px solid var(--rand); padding-top: 10px; }
+@media (min-width: 1024px) {
+  body.zweispaltig [data-bildschirm="notizen"] { position: sticky; top: 16px; max-height: calc(100vh - 48px); overflow-y: auto; }
+  body.zweispaltig #notiz-zurueck { visibility: hidden; }
+}
+
+/* Chats */
+.chat-zeile { display: flex; align-items: center; gap: 12px; }
+.chat-bild { flex: 0 0 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; background: var(--akzent-hell); color: var(--akzent); font-weight: 700; }
+.chat-mitte { flex: 1; min-width: 0; display: grid; }
+.chat-mitte .leise { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-rechts { display: grid; justify-items: end; gap: 4px; }
+.chat-rechts .neu-zahl { margin: 0; }
+.chat-personen { margin-bottom: 12px; padding: 10px 12px; border: 1px solid var(--akzent); border-radius: 14px; }
+.chat-personen .eintragsliste { max-height: 280px; overflow-y: auto; border-top: 0; }
+.chat-karte { display: flex; flex-direction: column; height: calc(100dvh - 48px); }
+.chat-karte .kopf { justify-content: flex-start; gap: 12px; align-items: center; margin-bottom: 8px; }
+.chat-kopf-text h1 { margin: 0; font-size: 20px; }
+.chat-kopf-text p { margin: 0; }
+.chat-verlauf { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding: 8px 2px; border-top: 1px solid var(--rand); border-bottom: 1px solid var(--rand); }
+.chat-tag { align-self: center; margin: 8px 0 2px; padding: 2px 10px; border-radius: 999px; background: var(--hg); color: var(--leise); font-size: 12px; }
+.chat-leer { text-align: center; margin: auto; }
+.blase { max-width: 80%; align-self: flex-start; padding: 6px 10px 4px; border-radius: 14px 14px 14px 4px; background: var(--hg); border: 1px solid var(--rand); }
+.blase.meine { align-self: flex-end; border-radius: 14px 14px 4px 14px; background: var(--akzent-hell); border-color: transparent; cursor: pointer; }
+.blase.wichtig { border: 2px solid var(--rot); }
+.blase.geloescht { opacity: .6; font-style: italic; }
+.blase-autor { display: block; font-size: 12px; font-weight: 700; color: var(--akzent); }
+.blase-wichtig { display: block; font-size: 12px; font-weight: 700; color: var(--rot); }
+.blase-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.blase-meta { display: block; text-align: right; font-size: 11px; color: var(--leise); }
+.chat-aeltere { align-self: center; margin: 6px 0; }
+.chat-form { padding-top: 8px; }
+.chat-extras { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; margin-bottom: 6px; }
+.chat-extras select { margin-left: 6px; font: inherit; font-size: 14px; padding: 4px 6px; border-radius: 8px; border: 1px solid var(--rand); background: var(--feld); color: var(--text); }
+.chat-schreiben { display: flex; gap: 8px; align-items: flex-end; }
+.chat-schreiben textarea { flex: 1; min-height: 44px; max-height: 160px; padding: 10px 12px; font: inherit; color: var(--text); background: var(--feld); border: 1px solid var(--rand); border-radius: 22px; resize: none; }
+.chat-schreiben button { flex: 0 0 48px; height: 44px; padding: 0; border-radius: 50%; font-size: 18px; }
+.chat-nur-lesen { text-align: center; padding: 10px 0 0; }
+@media (min-width: 1024px) {
+  body.zweispaltig [data-bildschirm="chats"] { position: sticky; top: 16px; max-height: calc(100vh - 48px); overflow-y: auto; }
+  body.zweispaltig #chat-zurueck { display: none; }
+  .chat-karte { height: calc(100vh - 48px); }
+}

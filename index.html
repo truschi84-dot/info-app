@@ -12,7 +12,7 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="icon" href="icons/icon-192.png">
 <title>Info-App</title>
-<link rel="stylesheet" href="css/app.css?v=13">
+<link rel="stylesheet" href="css/app.css?v=15">
 </head>
 <body>
 
@@ -86,10 +86,10 @@
     <button id="abmelden" class="neben klein-knopf">Abmelden</button>
   </div>
   <ul class="teile">
-    <li><span>💬</span> Chats<em>kommt bald</em></li>
+    <li class="offen"><button id="zu-chats"><span>💬</span> Chats<em id="chats-zahl" class="neu-zahl" hidden></em></button></li>
     <li class="offen"><button id="zum-nachschlagen"><span>📖</span> Nachschlagen<em id="wiki-neu-zahl" class="neu-zahl" hidden></em></button></li>
     <li class="offen"><button id="zum-planer"><span>📅</span> Planer</button></li>
-    <li><span>📝</span> Notizen<em>kommt bald</em></li>
+    <li class="offen"><button id="zu-notizen"><span>📝</span> Notizen</button></li>
   </ul>
   <div id="push-bereich" class="push-bereich" hidden>
     <p id="push-text" class="klein"></p>
@@ -219,6 +219,89 @@
   </div>
   <p id="nachschlagen-meldung" class="meldung" hidden></p>
   <div id="ergebnisse"></div>
+</main>
+
+<!-- Chats: Liste -->
+<main class="karte breit" data-bildschirm="chats" hidden>
+  <div class="kopf">
+    <h1>Chats</h1>
+    <button id="chats-zurueck" class="neben klein-knopf">Zurück</button>
+  </div>
+  <div class="zeile-kopf">
+    <p class="klein">Gruppen legt der Admin unter „Gruppen &amp; Wikis“ an.</p>
+    <button id="chat-neu" class="neben klein-knopf">＋ Neuer Chat</button>
+  </div>
+  <section id="chat-personen" class="chat-personen" hidden>
+    <label class="feld suche">
+      <span class="unsichtbar">Person suchen</span>
+      <input id="chat-personen-suche" type="search" placeholder="🔎 Wem willst du schreiben?" autocomplete="off">
+    </label>
+    <ul id="chat-personen-liste" class="eintragsliste"></ul>
+  </section>
+  <p id="chats-meldung" class="meldung" hidden></p>
+  <ul id="chats-liste" class="eintragsliste"></ul>
+</main>
+
+<!-- Chats: ein Chat -->
+<main class="karte breit chat-karte" data-bildschirm="chat" hidden>
+  <div class="kopf">
+    <button id="chat-zurueck" class="neben klein-knopf">‹</button>
+    <div class="chat-kopf-text">
+      <h1 id="chat-titel"></h1>
+      <p id="chat-unter" class="klein"></p>
+    </div>
+  </div>
+  <div id="chat-verlauf" class="chat-verlauf" aria-live="polite"></div>
+  <button id="chat-aeltere" class="neben klein-knopf chat-aeltere" hidden>Ältere Nachrichten laden</button>
+  <p id="chat-meldung" class="meldung" hidden></p>
+  <p id="chat-nur-lesen" class="klein chat-nur-lesen" hidden>📢 In dieser Ankündigung können nur ausgewählte Personen schreiben.</p>
+  <form id="chat-form" class="chat-form" novalidate>
+    <div id="chat-extras" class="chat-extras" hidden>
+      <label class="klein">Haltbarkeit
+        <select id="chat-haltbarkeit"><option value="">dauerhaft</option><option value="1">1 Tag</option><option value="7">1 Woche</option><option value="30">1 Monat</option></select>
+      </label>
+      <label class="haken"><input type="checkbox" id="chat-wichtig"><span>❗ Wichtig</span></label>
+    </div>
+    <div class="chat-schreiben">
+      <textarea id="chat-text" rows="1" maxlength="4000" placeholder="Nachricht" aria-label="Nachricht"></textarea>
+      <button id="chat-senden" class="haupt" type="submit" aria-label="Senden">➤</button>
+    </div>
+  </form>
+</main>
+
+<!-- Notizen: Liste -->
+<main class="karte breit" data-bildschirm="notizen" hidden>
+  <div class="kopf">
+    <div>
+      <h1>Notizen</h1>
+      <p class="unter">Nur für dich – niemand sonst kann sie sehen.</p>
+    </div>
+    <button id="notizen-zurueck" class="neben klein-knopf">Zurück</button>
+  </div>
+  <label class="feld suche">
+    <span class="unsichtbar">Notizen durchsuchen</span>
+    <input id="notizen-suche" type="search" placeholder="🔎 In Notizen suchen" autocomplete="off">
+  </label>
+  <div class="zeile-kopf">
+    <p class="klein" id="notizen-zahl"></p>
+    <button id="notiz-neu" class="neben klein-knopf">＋ Neue Notiz</button>
+  </div>
+  <p id="notizen-meldung" class="meldung" hidden></p>
+  <ul id="notizen-liste" class="eintragsliste"></ul>
+</main>
+
+<!-- Notizen: eine Notiz -->
+<main class="karte breit" data-bildschirm="notiz" hidden>
+  <div class="kopf">
+    <button id="notiz-zurueck" class="neben klein-knopf">‹ Notizen</button>
+    <span id="notiz-status" class="klein"></span>
+  </div>
+  <input id="notiz-titel" class="notiz-titel" maxlength="120" placeholder="Titel" aria-label="Titel">
+  <textarea id="notiz-text" class="notiz-text" placeholder="Notiz schreiben …" aria-label="Notiz"></textarea>
+  <div class="knoepfe klein">
+    <label class="haken"><input type="checkbox" id="notiz-anheften"><span>📌 Oben anheften</span></label>
+    <button id="notiz-loeschen" class="gefahr">Löschen</button>
+  </div>
 </main>
 
 <!-- Nachschlagen: ein Eintrag -->
@@ -366,6 +449,6 @@
 
 <script src="lib/supabase.min.js?v=2.45.4"></script>
 <script src="lib/qrcode.js?v=2.0.4"></script>
-<script type="module" src="js/app.js?v=22"></script>
+<script type="module" src="js/app.js?v=25"></script>
 </body>
 </html>
