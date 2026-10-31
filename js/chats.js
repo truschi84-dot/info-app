@@ -5,8 +5,8 @@
 // Gelesen: im Einzelchat Haken, in Gruppen eine Zahl erst ab 3 Empfaengern
 // (chat_gelesen_zahlen liefert nur Zahlen je eigener Nachricht, sonst nichts).
 // Als gelesen gilt nur, was wirklich auf dem Bildschirm steht.
-import { $, abteilungsChip, db, element, funktion, knopfBeschaeftigt, meldung, zeige, zeigeZwei } from "./gemeinsam.js?v=37";
-import { chatMelden } from "./hinweise.js?v=37";
+import { $, abteilungsChip, db, element, funktion, knopfBeschaeftigt, meldung, zeige, zeigeZwei } from "./gemeinsam.js?v=38";
+import { chatMelden } from "./hinweise.js?v=38";
 
 const NACHSEHEN_MS = 20000;
 const SEITE = 100;
@@ -218,7 +218,7 @@ async function erinnern(n, knopf) {
   const r = await funktion("wiki-push", { aktion: "erinnern", nachricht_id: n.id });
   knopfBeschaeftigt(knopf, false);
   meldung("#chat-meldung", r.status !== 200 ? "Erinnern ging nicht: " + (r.daten.fehler || "Fehler")
-    : r.daten.hinweis || `🔔 Erinnerung an ${r.daten.gesendet} Gerät${r.daten.gesendet === 1 ? "" : "e"} gesendet.`, r.status === 200 ? "hinweis" : "fehler");
+    : r.daten.hinweis || `🔔 Erinnerung an ${r.daten.gesendet} Gerät${r.daten.gesendet === 1 ? "" : "e"} gesendet.${r.daten.ruhe ? ` ${r.daten.ruhe} im Feierabend (sehen es in der App).` : ""}`, r.status === 200 ? "hinweis" : "fehler");
 }
 
 async function aeltereLaden() {

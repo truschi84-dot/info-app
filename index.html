@@ -12,7 +12,7 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="icon" href="icons/icon-192.png">
 <title>Info-App</title>
-<link rel="stylesheet" href="css/app.css?v=23">
+<link rel="stylesheet" href="css/app.css?v=25">
 </head>
 <body>
 
@@ -38,6 +38,7 @@
   <div id="scanner" class="scanner" hidden></div>
   <button id="scanner-aus" class="neben" hidden>Kamera aus</button>
   <p id="einladung-meldung" class="meldung" hidden></p>
+  <p class="klein"><button class="link-knopf datenschutz-link" type="button">🔒 Datenschutz</button></p>
 </main>
 
 <!-- PIN waehlen (nach gueltiger Einladung) -->
@@ -74,6 +75,7 @@
   </div>
   <p id="pin-meldung" class="meldung" hidden></p>
   <p class="klein">PIN vergessen? Robert stellt dir eine neue Einladung aus.</p>
+  <p class="klein"><button class="link-knopf datenschutz-link" type="button">🔒 Datenschutz</button></p>
 </main>
 
 <!-- Start (angemeldet) -->
@@ -83,12 +85,16 @@
       <h1 id="start-hallo">Hallo</h1>
       <p class="unter"><span id="start-datum"></span> <span id="start-umgebung" class="klein"></span></p>
     </div>
-    <button id="abmelden" class="neben klein-knopf">Abmelden</button>
+    <div class="kopf-knoepfe">
+      <button id="zu-einstellungen" class="neben klein-knopf" aria-label="Einstellungen">⚙️ Einstellungen</button>
+      <button id="abmelden" class="neben klein-knopf">Abmelden</button>
+    </div>
   </div>
   <div id="heute" class="heute-raster" aria-live="polite"></div>
   <div id="push-bereich" class="push-bereich" hidden>
     <p id="push-text" class="klein"></p>
     <button id="push-knopf" class="neben klein-knopf" hidden></button>
+    <button id="ruhe-kurz" class="link-knopf klein" hidden></button>
   </div>
   <div class="knoepfe" id="admin-knoepfe" hidden>
     <button id="zur-verwaltung" class="haupt">👥 Personen</button>
@@ -158,7 +164,8 @@
           <select id="u-halbtags"><option value="">ganzer Tag</option><option value="vormittag">Vormittag</option><option value="nachmittag">Nachmittag</option></select>
         </label>
       </div>
-      <label class="feld"><span>Bemerkung (sieht nur der Admin)</span><input id="u-bemerkung" maxlength="500"></label>
+      <label class="feld" id="u-bemerkung-feld"><span>Bemerkung (sieht nur der Admin)</span><input id="u-bemerkung" maxlength="500"></label>
+      <p id="u-krank-hinweis" class="hinweis-kasten klein" hidden>🤒 Bei „Krank“ wird nur der Zeitraum gespeichert – keine Bemerkung, keine Diagnose. Sehen können es nur die Person selbst, ihre Abteilungsleitung, Chef und Admin. Nach der Löschfrist wird es automatisch gelöscht.</p>
       <button id="urlaub-los" class="haupt" type="submit">Beantragen</button>
       <p id="urlaub-meldung" class="meldung" hidden></p>
     </form>
@@ -266,6 +273,91 @@
       <button id="chat-senden" class="haupt" type="submit" aria-label="Senden">➤</button>
     </div>
   </form>
+</main>
+
+<!-- Einstellungen: Feierabend-Ruhe, Datenschutz, Loeschfrist (Admin) -->
+<main class="karte" data-bildschirm="einstellungen" hidden>
+  <div class="kopf">
+    <h1>Einstellungen</h1>
+    <button id="einstellungen-zurueck" class="neben klein-knopf">Zurück</button>
+  </div>
+  <form id="ruhe-form" class="anlegen" novalidate>
+    <h2>🌙 Feierabend-Ruhe</h2>
+    <p class="klein">In dieser Zeit bleibt dein Handy still – keine Push-Nachrichten. In der App siehst du alles trotzdem, sobald du sie öffnest. Nur ❗ wichtige Ankündigungen der Leitung kommen immer durch.</p>
+    <label class="schalter"><input id="ruhe-an" type="checkbox"> Ruhezeit jeden Tag</label>
+    <div class="zeile" id="ruhe-zeiten">
+      <label class="feld"><span>von</span><input id="ruhe-von" type="time"></label>
+      <label class="feld"><span>bis</span><input id="ruhe-bis" type="time"></label>
+    </div>
+    <label class="schalter"><input id="ruhe-wochenende" type="checkbox"> Am Wochenende ganz in Ruhe (Sa + So)</label>
+    <div class="knoepfe"><button id="ruhe-speichern" class="haupt" type="submit">Speichern</button></div>
+    <p id="ruhe-meldung" class="meldung" hidden></p>
+  </form>
+  <section class="anlegen">
+    <h2>🔒 Datenschutz</h2>
+    <p class="klein">Was die App speichert, wer was sieht und wann es gelöscht wird.</p>
+    <div class="knoepfe"><button id="zum-datenschutz" class="neben">Datenschutz lesen</button></div>
+  </section>
+  <form id="frist-form" class="anlegen" novalidate hidden>
+    <h2>🤒 Löschfrist Krankmeldungen <span class="chip klein">Admin</span></h2>
+    <p class="klein">Krankmeldungen werden so viele Monate nach ihrem Ende automatisch gelöscht (jede Nacht). Die Frist legen Lohnbüro und Datenschutz fest, nicht die App.</p>
+    <div class="zeile">
+      <label class="feld"><span>Monate (1–24)</span><input id="frist-monate" type="number" min="1" max="24" inputmode="numeric"></label>
+    </div>
+    <div class="knoepfe"><button id="frist-speichern" class="haupt" type="submit">Speichern</button></div>
+    <p id="frist-meldung" class="meldung" hidden></p>
+  </form>
+</main>
+
+<!-- Datenschutz: was gespeichert wird, wer was sieht, wie lange -->
+<main class="karte breit" data-bildschirm="datenschutz" hidden>
+  <div class="kopf">
+    <div>
+      <h1>Datenschutz</h1>
+      <p class="unter">Was die Info-App speichert, wer was sieht und wann es gelöscht wird.</p>
+    </div>
+    <button id="datenschutz-zurueck" class="neben klein-knopf">Zurück</button>
+  </div>
+  <p class="hinweis-kasten klein">Entwurf (Stand 31.10.2026) – vor dem Echtbetrieb mit Datenschutzbeauftragtem und Betriebsrat abstimmen.</p>
+  <div class="langtext datenschutz">
+    <h2>Wo die Daten liegen</h2>
+    <ul>
+      <li>Alle Inhalte liegen bei Supabase in einem Rechenzentrum in <strong>Frankfurt (EU)</strong>.</li>
+      <li>Die App selbst (die Programmdateien, keine Inhalte) kommt von GitHub Pages. Dabei sieht GitHub die IP-Adresse deines Geräts.</li>
+      <li>Push-Nachrichten laufen über den Dienst deines Handys bzw. Browsers (Apple, Google oder Mozilla). Ausgeschaltet: keine Push-Nachrichten, die App geht trotzdem.</li>
+    </ul>
+    <h2>Was gespeichert wird</h2>
+    <ul>
+      <li><strong>Zu dir:</strong> Name, Abteilung, Funktion, Rolle (Mitarbeiter/Admin). Keine E-Mail, keine Telefonnummer, kein Standort.</li>
+      <li><strong>Anmeldung:</strong> deine PIN nur verschlüsselt (niemand kann sie lesen), deine Geräte mit Bezeichnung und Datum.</li>
+      <li><strong>Was du schreibst:</strong> Chat-Nachrichten, Wiki-Einträge, Termine, Aufgaben, Notizen.</li>
+      <li><strong>Abwesenheiten:</strong> Urlaub und Ähnliches mit Zeitraum und Status. Krankmeldungen nur mit Zeitraum – ohne Bemerkung, ohne Diagnose.</li>
+    </ul>
+    <h2>Wer was sieht</h2>
+    <ul>
+      <li><strong>Notizen</strong> siehst nur du – auch der Admin nicht.</li>
+      <li><strong>Einzelchats</strong> sehen nur die beiden. Der Admin sieht nicht, wer mit wem schreibt.</li>
+      <li><strong>„Gelesen“</strong> wird nur als Zahl gezeigt („gelesen 3/5“), nicht wer wann gelesen hat.</li>
+      <li><strong>„Bitte bestätigen“:</strong> der Absender sieht, wie viele bestätigt haben. Namen der Offenen nur bei Unterweisungen.</li>
+      <li><strong>Aufgaben-Haken:</strong> die Gruppe sieht, wer einen Punkt wann abgehakt hat (für die Schichtübergabe).</li>
+      <li><strong>Genehmigter Urlaub</strong> ist für alle sichtbar, offene Anträge nur für dich und die Freigabe.</li>
+      <li><strong>Krankmeldungen</strong> sehen nur du, deine Abteilungsleitung, der Chef und der Admin.</li>
+      <li>Der <strong>Admin</strong> verwaltet Personen und Geräte, sieht Gruppen und Ankündigungen – aber keine Notizen und keine Einzelchats.</li>
+    </ul>
+    <h2>Wann gelöscht wird</h2>
+    <ul>
+      <li><strong>Krankmeldungen:</strong> automatisch <span id="ds-frist">nach der eingestellten Frist</span> nach ihrem Ende.</li>
+      <li><strong>Beim Ausscheiden:</strong> Konto, PIN, Geräte, eigene Abwesenheiten, Einzelchats und Mitgliedschaften werden endgültig gelöscht. Was für die Firma geschrieben wurde (Wiki, Termine, Gruppen-Nachrichten), bleibt – ohne Namen.</li>
+      <li>Vorher wird eine Person nur deaktiviert: Sie kommt nicht mehr hinein, ihre Daten bleiben bis zum Löschen.</li>
+    </ul>
+    <h2>Was die App nicht tut</h2>
+    <ul>
+      <li>Keine Zeiterfassung, keine Leistungsauswertung, keine Ortung, keine Werbung, keine Weitergabe an Dritte.</li>
+      <li>Feierabend-Ruhe: in deiner Ruhezeit bleibt das Handy still (einstellbar unter ⚙️ Einstellungen).</li>
+    </ul>
+    <h2>Fragen</h2>
+    <p>An den Admin der App oder die Geschäftsleitung.</p>
+  </div>
 </main>
 
 <!-- Aufgaben und Checklisten -->
@@ -497,6 +589,6 @@
 
 <script src="lib/supabase.min.js?v=2.45.4"></script>
 <script src="lib/qrcode.js?v=2.0.4"></script>
-<script type="module" src="js/app.js?v=37"></script>
+<script type="module" src="js/app.js?v=38"></script>
 </body>
 </html>

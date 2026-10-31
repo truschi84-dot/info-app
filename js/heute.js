@@ -3,9 +3,9 @@
 // Antraege (Freigeber), Neues im Wiki. Jede Zeile fuehrt direkt dorthin.
 // Gelesen wird nur, was die Datenbank-Regeln erlauben (z. B. "krank" nur fuer
 // Leitung und Chefs) - hier wird nichts zusaetzlich gefiltert, nur eingegrenzt.
-import { $, abteilungsChip, db, element } from "./gemeinsam.js?v=37";
-import { neuigkeiten } from "./hinweise.js?v=37";
-import { aufgabenHeute } from "./aufgaben.js?v=37";
+import { $, abteilungsChip, db, element } from "./gemeinsam.js?v=38";
+import { neuigkeiten } from "./hinweise.js?v=38";
+import { aufgabenHeute } from "./aufgaben.js?v=38";
 
 const TAG = 86400e3;
 

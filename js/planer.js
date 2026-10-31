@@ -5,7 +5,7 @@
 // in "termine" - die Zugriffsregeln entscheiden, wer was darf.
 import {
   $, abteilungsChip, db, eingefaerbt, element, farbenLaden, hoechstzahl, knopfBeschaeftigt, meldung, zeige,
-} from "./gemeinsam.js?v=37";
+} from "./gemeinsam.js?v=38";
 
 const ARTEN = { urlaub: "Urlaub", schule: "Schule / Fortbildung", sonstiges: "Sonstiges", krank: "Krank" };
 // Zeichen je Abwesenheit. "Krank" sehen nur Leitung, Freigeber und Admin (Datenbank-Regel).
@@ -65,6 +65,12 @@ export function planerEinrichten(zurueck) {
   $("#termin-abbrechen").addEventListener("click", () => { $("#termin-bereich").hidden = true; });
   $("#t-ganztags").addEventListener("change", () => { $("#t-zeiten").hidden = $("#t-ganztags").checked; });
   $("#urlaub-form").addEventListener("submit", (e) => { e.preventDefault(); urlaubBeantragen(); });
+  // Krank: keine Bemerkung (dort landet sonst schnell eine Diagnose).
+  $("#u-art").addEventListener("change", () => {
+    const krank = $("#u-art").value === "krank";
+    $("#u-bemerkung-feld").hidden = krank;
+    $("#u-krank-hinweis").hidden = !krank;
+  });
   for (const id of ["#u-von", "#u-bis"]) $(id).addEventListener("change", halbtagsPruefen);
 }
 
@@ -319,7 +325,7 @@ async function urlaubBeantragen() {
   knopfBeschaeftigt(knopf, true);
   const { error } = await db.rpc("abwesenheit_beantragen", {
     art: $("#u-art").value, von, bis, halbtags: $("#u-halbtags").value || null,
-    bemerkung: $("#u-bemerkung").value.trim() || null, fuer: $("#u-fuer").value || null,
+    bemerkung: krank ? null : $("#u-bemerkung").value.trim() || null, fuer: $("#u-fuer").value || null,
   });
   knopfBeschaeftigt(knopf, false);
   if (error) return meldung("#urlaub-meldung", error.message);

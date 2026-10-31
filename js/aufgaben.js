@@ -2,7 +2,7 @@
 // (aufgabe_haken) - so gibt es jeden Tag frische Haken und das Gestern bleibt
 // nachvollziehbar. Ob eine Aufgabe an einem Tag dran ist, rechnet faelligAm().
 // Was jemand sehen/anlegen/abhaken darf, entscheiden die Datenbank-Regeln.
-import { $, datumZeit, db, element, knopfBeschaeftigt, meldung, zeige } from "./gemeinsam.js?v=37";
+import { $, datumZeit, db, element, knopfBeschaeftigt, meldung, zeige } from "./gemeinsam.js?v=38";
 
 const WIEDERHOLUNG = { "": "einmalig", taeglich: "täglich", werktags: "werktags", woechentlich: "wöchentlich", monatlich: "monatlich" };
 const FILTER = [["heute", "Heute"], ["meine", "Meine"], ["alle", "Alle"]];

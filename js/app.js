@@ -3,18 +3,19 @@
 //   gueltige Sitzung          -> Start
 //   Geraet eingerichtet       -> PIN
 //   sonst                     -> Einladung
-import { $, db, farbenLaden, geraetLesen, zeige } from "./gemeinsam.js?v=37";
-import { UMGEBUNG } from "./konfig.js?v=37";
-import { anmeldungEinrichten, codeAus, zeigeEinladung, zeigePin } from "./anmelden.js?v=37";
-import { adminEinrichten, zeigeAdmin } from "./admin.js?v=37";
-import { eintragOeffnen, nachschlagenEinrichten, zeigeNachschlagen } from "./nachschlagen.js?v=37";
-import { neuigkeiten, pushAusschalten, pushEinschalten, pushStatus, swRegistrieren } from "./hinweise.js?v=37";
-import { gruppenEinrichten, zeigeGruppen } from "./gruppen.js?v=37";
-import { planerEinrichten, zeigePlaner } from "./planer.js?v=37";
-import { notizenEinrichten, zeigeNotizen } from "./notizen.js?v=37";
-import { chatOeffnen, chatsEinrichten, chatsUngelesen, zeigeChats } from "./chats.js?v=37";
-import { begruessung, heuteZeigen } from "./heute.js?v=37";
-import { aufgabenEinrichten, aufgabenHeute, zeigeAufgaben } from "./aufgaben.js?v=37";
+import { $, db, farbenLaden, geraetLesen, zeige } from "./gemeinsam.js?v=38";
+import { UMGEBUNG } from "./konfig.js?v=38";
+import { anmeldungEinrichten, codeAus, zeigeEinladung, zeigePin } from "./anmelden.js?v=38";
+import { adminEinrichten, zeigeAdmin } from "./admin.js?v=38";
+import { eintragOeffnen, nachschlagenEinrichten, zeigeNachschlagen } from "./nachschlagen.js?v=38";
+import { neuigkeiten, pushAusschalten, pushEinschalten, pushStatus, swRegistrieren } from "./hinweise.js?v=38";
+import { gruppenEinrichten, zeigeGruppen } from "./gruppen.js?v=38";
+import { planerEinrichten, zeigePlaner } from "./planer.js?v=38";
+import { notizenEinrichten, zeigeNotizen } from "./notizen.js?v=38";
+import { chatOeffnen, chatsEinrichten, chatsUngelesen, zeigeChats } from "./chats.js?v=38";
+import { begruessung, heuteZeigen } from "./heute.js?v=38";
+import { aufgabenEinrichten, aufgabenHeute, zeigeAufgaben } from "./aufgaben.js?v=38";
+import { einstellungenEinrichten, ruheKurz, zeigeEinstellungen } from "./einstellungen.js?v=38";
 
 let ich = null;
 let offenerLink = null; // { art, id } aus einer Push-Nachricht, wird nach der Anmeldung geoeffnet
@@ -91,6 +92,9 @@ async function pushAnzeigen() {
   knopf.hidden = !["an", "aus"].includes(status);
   knopf.textContent = status === "an" ? "Ausschalten" : "🔔 Einschalten";
   knopf.dataset.status = status;
+  const ruhe = status === "an" ? await ruheKurz() : null;
+  $("#ruhe-kurz").hidden = !ruhe;
+  if (ruhe) $("#ruhe-kurz").textContent = ruhe + " Ändern";
 }
 
 async function pushUmschalten() {
@@ -123,6 +127,7 @@ async function start() {
   notizenEinrichten(zeigeStart);
   chatsEinrichten(zeigeStart);
   aufgabenEinrichten(zeigeStart);
+  einstellungenEinrichten(zeigeStart);
 
   // Nur dieses Geraet abmelden ("local"). Ohne Angabe beendet Supabase alle
   // Sitzungen der Person - dann waere auch das Handy draussen, wenn man am PC
@@ -140,6 +145,8 @@ async function start() {
   $("#zu-aufgaben").addEventListener("click", () => zeigeAufgaben(ich));
   $("#zu-chats").addEventListener("click", () => zeigeChats(ich));
   $("#push-knopf").addEventListener("click", pushUmschalten);
+  $("#zu-einstellungen").addEventListener("click", () => zeigeEinstellungen(ich));
+  $("#ruhe-kurz").addEventListener("click", () => zeigeEinstellungen(ich));
 
   swRegistrieren();
   // Push-Nachricht angetippt, waehrend die App schon offen ist.

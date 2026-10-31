@@ -2,7 +2,7 @@
 // Wikis/Tabellen anlegen, ihre Felder festlegen und bestimmen, wer liest
 // (Gruppen, Abteilungen) und wer schreibt (Redakteure, Abteilungsleiter).
 // Alles direkt ueber die Datenbank - die Zugriffsregeln lassen nur den Admin.
-import { $, db, element, haken as sofortHaken, knopfBeschaeftigt, meldung, zeige } from "./gemeinsam.js?v=37";
+import { $, db, element, haken as sofortHaken, knopfBeschaeftigt, meldung, zeige } from "./gemeinsam.js?v=38";
 
 const FELDTYPEN = {
   text: "Text (eine Zeile)", langtext: "Text (mehrere Zeilen)", stichpunkte: "Stichpunkte",

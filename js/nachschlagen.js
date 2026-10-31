@@ -5,8 +5,8 @@
 // Abteilungsleiter fuer Eintraege, die nur ihren Abteilungen zugeordnet sind.
 // Am PC stehen Liste und Eintrag nebeneinander. Oben steht, was seit dem
 // letzten Oeffnen neu oder geaendert ist (wiki_neu).
-import { $, abteilungsChip, datumZeit, db, element, knopfBeschaeftigt, meldung, zeige, zeigeZwei } from "./gemeinsam.js?v=37";
-import { allesGesehen, eintragGesehen, neuigkeiten, wikiMelden } from "./hinweise.js?v=37";
+import { $, abteilungsChip, datumZeit, db, element, knopfBeschaeftigt, meldung, zeige, zeigeZwei } from "./gemeinsam.js?v=38";
+import { allesGesehen, eintragGesehen, neuigkeiten, wikiMelden } from "./hinweise.js?v=38";
 
 const SUCH_PAUSE_MS = 250;
 const breit = window.matchMedia("(min-width: 1024px)");
@@ -403,7 +403,7 @@ async function speichern() {
   const m = await wikiMelden(r.data.id);
   meldung("#eintrag-meldung", m.status !== 200 ? "📣 Push ging nicht: " + (m.daten.fehler || "Fehler")
     : m.daten.hinweis ? "📣 " + m.daten.hinweis
-    : `📣 Push an ${m.daten.gesendet} Gerät${m.daten.gesendet === 1 ? "" : "e"} gesendet.`, m.status === 200 ? "hinweis" : "fehler");
+    : `📣 Push an ${m.daten.gesendet} Gerät${m.daten.gesendet === 1 ? "" : "e"} gesendet.${m.daten.ruhe ? ` ${m.daten.ruhe} im Feierabend (sehen es in der App).` : ""}`, m.status === 200 ? "hinweis" : "fehler");
 }
 
 // Geschuetzte Felder nur, wenn ich sie sehen darf - sonst wuerde ich blind ueberschreiben.

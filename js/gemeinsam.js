@@ -3,7 +3,7 @@
 // nie als HTML (Plan Abschnitt 5, Falle 8).
 // Alle eigenen Module tragen dieselbe ?v=-Nummer wie in index.html. Ein Modul
 // muss ueberall mit derselben Adresse eingebunden werden, sonst laeuft es doppelt.
-import { SUPABASE, UMGEBUNG } from "./konfig.js?v=37";
+import { SUPABASE, UMGEBUNG } from "./konfig.js?v=38";
 
 export const db = window.supabase.createClient(SUPABASE.url, SUPABASE.key, {
   auth: { storageKey: `info-app-sitzung-${UMGEBUNG}`, persistSession: true, autoRefreshToken: true },
@@ -73,6 +73,7 @@ const LEISTE = {
   start: "zu-heute", chats: "zu-chats", chat: "zu-chats", planer: "zum-planer",
   nachschlagen: "zum-nachschlagen", eintrag: "zum-nachschlagen", "eintrag-formular": "zum-nachschlagen",
   notizen: "zu-notizen", notiz: "zu-notizen", admin: "zu-heute", gruppen: "zu-heute", aufgaben: "zu-aufgaben",
+  einstellungen: "zu-heute",
 };
 const OHNE_LEISTE_HANDY = new Set(["chat", "notiz", "eintrag-formular"]);
 

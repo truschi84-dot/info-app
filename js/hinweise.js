@@ -2,7 +2,7 @@
 // Handy (Service Worker sw.js + Cloud-Funktion wiki-push).
 // Am iPhone geht Push nur, wenn die App vom Home-Bildschirm geoeffnet wurde -
 // im normalen Safari fehlt PushManager ganz.
-import { db, funktion, geraetLesen } from "./gemeinsam.js?v=37";
+import { db, funktion, geraetLesen } from "./gemeinsam.js?v=38";
 
 export async function neuigkeiten() {
   const { data, error } = await db.rpc("wiki_neu");
